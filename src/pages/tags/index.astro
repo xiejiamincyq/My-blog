@@ -1,0 +1,33 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getAllTags, getPublishedPosts } from "../../lib/posts";
+
+const tags = await getAllTags();
+const posts = await getPublishedPosts();
+const counts = new Map<string, number>();
+
+for (const post of posts) {
+  for (const tag of post.data.tags) {
+    counts.set(tag, (counts.get(tag) ?? 0) + 1);
+  }
+}
+---
+
+<BaseLayout title="标签" description="按主题浏览博客文章。">
+  <section class="page-header">
+    <p class="eyebrow">Topics</p>
+    <h1>标签</h1>
+    <p>从主题进入文章，看看哪些问题反复出现。</p>
+  </section>
+
+  <section class="tag-cloud" aria-label="所有标签">
+    {
+      tags.map((tag) => (
+        <a href={`/tags/${encodeURIComponent(tag)}/`}>
+          <span>{tag}</span>
+          <strong>{counts.get(tag)}</strong>
+        </a>
+      ))
+    }
+  </section>
+</BaseLayout>
