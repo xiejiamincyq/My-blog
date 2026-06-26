@@ -1,0 +1,6 @@
+dist
+node_modules
+.astro
+.git
+.github
+public/favicon.svg

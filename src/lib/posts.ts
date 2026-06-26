@@ -4,9 +4,7 @@ import type { CollectionEntry } from "astro:content";
 export async function getPublishedPosts() {
   const posts = await getCollection("blog");
 
-  return posts.sort(
-    (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
-  );
+  return posts.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 }
 
 export async function getAllTags() {

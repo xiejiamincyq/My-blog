@@ -1,0 +1,285 @@
+<div id="search-wrapper" class="search-wrapper">
+  <label class="search-bar" for="search-input">
+    <span class="search-icon" aria-hidden="true">⌕</span>
+    <input
+      id="search-input"
+      type="search"
+      placeholder="搜索文章..."
+      aria-label="站内搜索"
+      autocomplete="off"
+    />
+    <kbd class="search-shortcut" aria-hidden="true">Ctrl K</kbd>
+  </label>
+  <div id="search-results" class="search-results" hidden>
+    <div id="search-results-inner"></div>
+  </div>
+</div>
+
+<style>
+  .search-wrapper {
+    position: relative;
+    width: min(100%, 460px);
+  }
+
+  .search-bar {
+    display: flex;
+    align-items: center;
+    min-height: 52px;
+    gap: 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(8, 13, 24, 0.72);
+    padding: 0 14px;
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.24);
+    backdrop-filter: blur(18px);
+    transition:
+      border-color 160ms ease,
+      box-shadow 160ms ease;
+  }
+
+  .search-bar:focus-within {
+    border-color: rgba(71, 233, 255, 0.58);
+    box-shadow:
+      0 14px 38px rgba(0, 0, 0, 0.28),
+      0 0 24px rgba(71, 233, 255, 0.16);
+  }
+
+  .search-icon {
+    color: var(--accent);
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  #search-input {
+    min-width: 0;
+    flex: 1;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    outline: 0;
+  }
+
+  #search-input::placeholder {
+    color: var(--muted);
+  }
+
+  .search-shortcut {
+    flex: 0 0 auto;
+    border: 1px solid rgba(71, 233, 255, 0.18);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--muted);
+    padding: 2px 7px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.5;
+  }
+
+  .search-results {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    max-height: min(420px, 60vh);
+    overflow-y: auto;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface-strong);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(20px);
+  }
+
+  .search-results[hidden] {
+    display: none;
+  }
+
+  .search-result {
+    display: block;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .search-result:last-child {
+    border-bottom: 0;
+  }
+
+  .search-result:hover {
+    background: rgba(71, 233, 255, 0.07);
+  }
+
+  .search-result-title {
+    color: var(--accent);
+    font-weight: 800;
+  }
+
+  .search-result-excerpt {
+    margin: 6px 0 0;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  .search-result-excerpt mark {
+    border-radius: 3px;
+    background: rgba(255, 200, 87, 0.22);
+    color: var(--sun);
+    padding: 0 2px;
+  }
+
+  .search-message {
+    padding: 22px 16px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  @media (max-width: 760px) {
+    .search-wrapper {
+      width: 100%;
+    }
+
+    .search-shortcut {
+      display: none;
+    }
+  }
+</style>
+
+<script>
+  interface PagefindResultData {
+    url: string;
+    raw_url?: string;
+    excerpt: string;
+    meta: {
+      title?: string;
+    };
+  }
+
+  interface PagefindSearchResult {
+    data: () => Promise<PagefindResultData>;
+  }
+
+  interface PagefindSearchResponse {
+    results: PagefindSearchResult[];
+  }
+
+  interface PagefindInstance {
+    search: (query: string) => Promise<PagefindSearchResponse>;
+  }
+
+  interface PagefindModule extends PagefindInstance {
+    createInstance?: (options?: { basePath?: string }) => PagefindInstance;
+  }
+
+  const input = document.getElementById("search-input") as HTMLInputElement | null;
+  const results = document.getElementById("search-results") as HTMLDivElement | null;
+  const inner = document.getElementById("search-results-inner") as HTMLDivElement | null;
+  const wrapper = document.getElementById("search-wrapper");
+
+  let pagefindPromise: Promise<PagefindInstance> | null = null;
+  let debounceTimer: ReturnType<typeof setTimeout>;
+
+  function escapeHtml(value: string) {
+    return value.replace(/[&<>"']/g, (char) => {
+      const entities: Record<string, string> = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return entities[char];
+    });
+  }
+
+  async function getPagefind() {
+    if (!pagefindPromise) {
+      const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
+      pagefindPromise = import(/* @vite-ignore */ `${base}pagefind/pagefind.js`).then(
+        async (module: PagefindModule) => {
+          return module.createInstance
+            ? module.createInstance({ basePath: `${base}pagefind/` })
+            : module;
+        },
+      );
+    }
+
+    return pagefindPromise;
+  }
+
+  function showMessage(message: string) {
+    if (!results || !inner) return;
+    inner.innerHTML = `<div class="search-message">${escapeHtml(message)}</div>`;
+    results.hidden = false;
+  }
+
+  async function runSearch(query: string) {
+    if (!results || !inner) return;
+
+    if (!query) {
+      results.hidden = true;
+      inner.innerHTML = "";
+      return;
+    }
+
+    showMessage("正在搜索...");
+
+    try {
+      const pagefind = await getPagefind();
+      const response = await pagefind.search(query);
+
+      if (!response.results.length) {
+        showMessage("没有找到匹配的文章");
+        return;
+      }
+
+      const items = await Promise.all(
+        response.results.slice(0, 8).map(async (result) => {
+          const data = await result.data();
+          const title = data.meta.title || data.url;
+          const href = data.raw_url || data.url;
+
+          return `
+            <a class="search-result" href="${escapeHtml(href)}">
+              <span class="search-result-title">${escapeHtml(title)}</span>
+              <p class="search-result-excerpt">${data.excerpt}</p>
+            </a>
+          `;
+        }),
+      );
+
+      inner.innerHTML = items.join("");
+      results.hidden = false;
+    } catch (error) {
+      console.error("Pagefind search failed", error);
+      showMessage("搜索索引暂时不可用，请先完成一次构建");
+    }
+  }
+
+  if (input && results && inner) {
+    input.addEventListener("input", () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => runSearch(input.value.trim()), 180);
+    });
+
+    document.addEventListener("click", (event) => {
+      if (wrapper && !wrapper.contains(event.target as Node)) {
+        results.hidden = true;
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        results.hidden = true;
+        input.blur();
+      }
+
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        input.focus();
+        input.select();
+      }
+    });
+  }
+</script>

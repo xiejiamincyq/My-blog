@@ -25,3 +25,21 @@ async function run(args) {
 }
 
 await run(["build"]);
+
+await new Promise((resolve, reject) => {
+  const pagefindBin = join(root, "node_modules", "pagefind", "lib", "runner", "bin.cjs");
+  const child = spawn(process.execPath, [pagefindBin, "--site", "dist"], {
+    cwd: root,
+    stdio: "inherit",
+    shell: false,
+  });
+
+  child.on("exit", (code) => {
+    if (code === 0) {
+      resolve();
+      return;
+    }
+
+    reject(new Error(`Pagefind index failed with code ${code}`));
+  });
+});

@@ -1,0 +1,140 @@
+---
+const repo = import.meta.env.PUBLIC_GISCUS_REPO;
+const repoId = import.meta.env.PUBLIC_GISCUS_REPO_ID;
+const category = import.meta.env.PUBLIC_GISCUS_CATEGORY;
+const categoryId = import.meta.env.PUBLIC_GISCUS_CATEGORY_ID;
+
+const isConfigured = Boolean(repo && repoId && categoryId);
+const showSetupNotice = import.meta.env.DEV && !isConfigured;
+---
+
+{
+  isConfigured ? (
+    <section
+      class="giscus-wrapper"
+      aria-label="Comments"
+      data-giscus-ready="true"
+      data-repo={repo}
+      data-repo-id={repoId}
+      data-category={category}
+      data-category-id={categoryId}
+    >
+      <div class="giscus" />
+    </section>
+  ) : showSetupNotice ? (
+    <aside class="giscus-wrapper giscus-notice" aria-label="Comments setup notice">
+      <strong>Comments are not configured yet</strong>
+      <p>
+        Set PUBLIC_GISCUS_REPO, PUBLIC_GISCUS_REPO_ID, and PUBLIC_GISCUS_CATEGORY_ID in your
+        environment variables.
+      </p>
+    </aside>
+  ) : null
+}
+
+<style>
+  .giscus-wrapper {
+    margin-top: 56px;
+    border-top: 1px solid var(--line);
+    padding-top: 40px;
+  }
+
+  .giscus-notice {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(8, 13, 24, 0.62);
+    padding: 22px;
+    color: var(--muted);
+  }
+
+  .giscus-notice strong {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--accent-strong);
+  }
+
+  .giscus-notice p {
+    margin: 0;
+  }
+
+  :global(.giscus-frame) {
+    color-scheme: normal;
+  }
+</style>
+
+<script>
+  const getGiscusTheme = () => {
+    const theme = document.documentElement.dataset.theme;
+    return theme === "light" ? "light" : "transparent_dark";
+  };
+
+  const updateGiscusTheme = () => {
+    const iframe = document.querySelector<HTMLIFrameElement>("iframe.giscus-frame");
+    if (!iframe?.contentWindow) return;
+
+    iframe.contentWindow.postMessage(
+      {
+        giscus: {
+          setConfig: {
+            theme: getGiscusTheme(),
+          },
+        },
+      },
+      "https://giscus.app",
+    );
+  };
+
+  const loadGiscus = (wrapper: HTMLElement) => {
+    const container = wrapper.querySelector<HTMLElement>(".giscus");
+    if (!container || wrapper.dataset.loaded === "true") return;
+
+    const script = document.createElement("script");
+    script.src = "https://giscus.app/client.js";
+    script.setAttribute("data-repo", wrapper.dataset.repo ?? "");
+    script.setAttribute("data-repo-id", wrapper.dataset.repoId ?? "");
+    if (wrapper.dataset.category) {
+      script.setAttribute("data-category", wrapper.dataset.category);
+    }
+    script.setAttribute("data-category-id", wrapper.dataset.categoryId ?? "");
+    script.setAttribute("data-mapping", "pathname");
+    script.setAttribute("data-strict", "0");
+    script.setAttribute("data-reactions-enabled", "1");
+    script.setAttribute("data-emit-metadata", "0");
+    script.setAttribute("data-input-position", "bottom");
+    script.setAttribute("data-theme", getGiscusTheme());
+    script.setAttribute("data-lang", "zh-CN");
+    script.setAttribute("data-loading", "lazy");
+    script.crossOrigin = "anonymous";
+    script.async = true;
+
+    wrapper.dataset.loaded = "true";
+    container.appendChild(script);
+  };
+
+  const wrappers = document.querySelectorAll<HTMLElement>(
+    ".giscus-wrapper[data-giscus-ready='true']",
+  );
+
+  if ("IntersectionObserver" in window) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          loadGiscus(entry.target as HTMLElement);
+          observer.unobserve(entry.target);
+        });
+      },
+      { rootMargin: "300px" },
+    );
+
+    wrappers.forEach((wrapper) => observer.observe(wrapper));
+  } else {
+    wrappers.forEach(loadGiscus);
+  }
+
+  const themeObserver = new MutationObserver(updateGiscusTheme);
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme"],
+  });
+</script>

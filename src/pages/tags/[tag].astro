@@ -13,9 +13,7 @@ export async function getStaticPaths() {
 }
 
 const { tag } = Astro.props;
-const posts = (await getPublishedPosts()).filter((post) =>
-  post.data.tags.includes(tag),
-);
+const posts = (await getPublishedPosts()).filter((post) => post.data.tags.includes(tag));
 ---
 
 <BaseLayout title={`标签：${tag}`} description={`查看标签 ${tag} 下的文章。`}>

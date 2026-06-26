@@ -1,18 +1,12 @@
 ---
+import { Image } from "astro:assets";
 import TagList from "./TagList.astro";
 import { getPostSlug } from "../lib/posts";
 import { sitePath } from "../lib/paths";
+import type { CollectionEntry } from "astro:content";
 
 interface Props {
-  post: {
-    id: string;
-    data: {
-      title: string;
-      description: string;
-      pubDate: Date;
-      tags: string[];
-    };
-  };
+  post: CollectionEntry<"blog">;
 }
 
 const { post } = Astro.props;
@@ -26,6 +20,20 @@ const date = new Intl.DateTimeFormat("zh-CN", {
 
 <article class="post-card">
   <a href={sitePath(`/blog/${slug}/`)}>
+    {
+      post.data.heroImage && (
+        <div class="post-card-image">
+          <Image
+            src={post.data.heroImage}
+            alt={post.data.title}
+            widths={[400, 600]}
+            sizes="(max-width: 760px) 100vw, 400px"
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+      )
+    }
     <p class="post-card-date">{date}</p>
     <h2>{post.data.title}</h2>
     <p>{post.data.description}</p>

@@ -4,6 +4,7 @@ description: "第一篇文章通常不用承担太多，只要把一张空白页
 pubDate: 2026-06-26
 tags: ["随笔", "开始"]
 featured: true
+heroImage: "./images/hello-world-hero.png"
 ---
 
 这是这个博客的第一篇示例文章。
