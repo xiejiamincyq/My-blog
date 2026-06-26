@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "./BaseLayout.astro";
 import TagList from "../components/TagList.astro";
+import { sitePath } from "../lib/paths";
 
 interface Props {
   title: string;
@@ -22,7 +23,7 @@ const formatDate = (date: Date) =>
 
 <BaseLayout title={title} description={description}>
   <article class="post-shell">
-    <a class="back-link" href="/blog/">返回文章</a>
+    <a class="back-link" href={sitePath("/blog/")}>返回文章</a>
     <header class="post-header">
       <p class="eyebrow">{formatDate(pubDate)}</p>
       <h1>{title}</h1>

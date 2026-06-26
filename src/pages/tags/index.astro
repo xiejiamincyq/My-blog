@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getAllTags, getPublishedPosts } from "../../lib/posts";
+import { sitePath } from "../../lib/paths";
 
 const tags = await getAllTags();
 const posts = await getPublishedPosts();
@@ -23,7 +24,7 @@ for (const post of posts) {
   <section class="tag-cloud" aria-label="所有标签">
     {
       tags.map((tag) => (
-        <a href={`/tags/${encodeURIComponent(tag)}/`}>
+        <a href={sitePath(`/tags/${encodeURIComponent(tag)}/`)}>
           <span>{tag}</span>
           <strong>{counts.get(tag)}</strong>
         </a>

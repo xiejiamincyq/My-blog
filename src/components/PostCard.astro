@@ -1,6 +1,7 @@
 ---
 import TagList from "./TagList.astro";
 import { getPostSlug } from "../lib/posts";
+import { sitePath } from "../lib/paths";
 
 interface Props {
   post: {
@@ -24,7 +25,7 @@ const date = new Intl.DateTimeFormat("zh-CN", {
 ---
 
 <article class="post-card">
-  <a href={`/blog/${slug}/`}>
+  <a href={sitePath(`/blog/${slug}/`)}>
     <p class="post-card-date">{date}</p>
     <h2>{post.data.title}</h2>
     <p>{post.data.description}</p>
