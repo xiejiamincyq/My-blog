@@ -57,6 +57,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check Supabase public variables
+        run: |
+          if [ -z "$PUBLIC_SUPABASE_URL" ]; then
+            echo "::error::PUBLIC_SUPABASE_URL is empty. Add it under Repository variables, then rerun this workflow."
+            exit 1
+          fi
+          if [ -z "$PUBLIC_SUPABASE_ANON_KEY" ]; then
+            echo "::error::PUBLIC_SUPABASE_ANON_KEY is empty. Add it under Repository variables, then rerun this workflow."
+            exit 1
+          fi
+          echo "Supabase public variables are present."
+        env:
+          PUBLIC_SUPABASE_URL: ${{ vars.PUBLIC_SUPABASE_URL }}
+          PUBLIC_SUPABASE_ANON_KEY: ${{ vars.PUBLIC_SUPABASE_ANON_KEY }}
+
       - name: Build site
         run: npm run build
         env:
@@ -65,9 +80,12 @@ jobs:
           PUBLIC_GISCUS_REPO_ID: ${{ vars.PUBLIC_GISCUS_REPO_ID }}
           PUBLIC_GISCUS_CATEGORY: ${{ vars.PUBLIC_GISCUS_CATEGORY }}
           PUBLIC_GISCUS_CATEGORY_ID: ${{ vars.PUBLIC_GISCUS_CATEGORY_ID }}
+          PUBLIC_SUPABASE_URL: ${{ vars.PUBLIC_SUPABASE_URL }}
+          PUBLIC_SUPABASE_ANON_KEY: ${{ vars.PUBLIC_SUPABASE_ANON_KEY }}
+          PUBLIC_SUPABASE_ADMIN_FUNCTION_URL: ${{ vars.PUBLIC_SUPABASE_ADMIN_FUNCTION_URL }}
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
@@ -81,4 +99,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
