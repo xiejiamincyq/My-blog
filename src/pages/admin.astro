@@ -1,0 +1,667 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getPublishedPosts, getPostSlug } from "../lib/posts";
+
+const posts = await getPublishedPosts();
+const postItems = posts.map((post) => ({
+  slug: getPostSlug(post),
+  title: post.data.title,
+  description: post.data.description,
+  pubDate: post.data.pubDate.toISOString().slice(0, 10),
+  tags: post.data.tags,
+  featured: post.data.featured,
+}));
+---
+
+<BaseLayout title="后台管理" description="虾米的博客后台管理。">
+  <section class="admin-shell" data-admin-root>
+    <header class="admin-hero">
+      <div>
+        <p class="eyebrow">Admin</p>
+        <h1>后台管理</h1>
+        <p>管理文章、评论、浏览统计、个人介绍和主页背景。</p>
+      </div>
+      <div class="admin-auth-card">
+        <p data-admin-status>正在检查登录状态...</p>
+        <button class="button primary" type="button" data-admin-login hidden
+          >使用 GitHub 登录</button
+        >
+        <button class="button secondary" type="button" data-admin-logout hidden>退出登录</button>
+      </div>
+    </header>
+
+    <div class="admin-locked" data-admin-locked hidden>
+      <h2>需要管理员权限</h2>
+      <p>博客内容对所有访客公开，但后台只有管理员可以进入。</p>
+    </div>
+
+    <div class="admin-console" data-admin-console hidden>
+      <aside class="admin-tabs" aria-label="后台导航">
+        <button type="button" data-admin-tab="articles" aria-current="true">文章</button>
+        <button type="button" data-admin-tab="comments">评论</button>
+        <button type="button" data-admin-tab="stats">统计</button>
+        <button type="button" data-admin-tab="profile">个人介绍</button>
+        <button type="button" data-admin-tab="theme">主页背景</button>
+      </aside>
+
+      <section class="admin-panel" data-admin-panel="articles">
+        <div class="admin-panel-heading">
+          <h2>文章管理</h2>
+          <p>新增、修改或删除 Markdown 文章。保存后会写入 GitHub 仓库并触发部署。</p>
+        </div>
+        <div class="admin-grid two">
+          <div>
+            <h3>现有文章</h3>
+            <div class="admin-list" data-article-list></div>
+          </div>
+          <form class="admin-form" data-article-form>
+            <input type="hidden" name="mode" value="create" />
+            <label>Slug <input name="slug" placeholder="my-new-post" required /></label>
+            <label>标题 <input name="title" required /></label>
+            <label>简介 <textarea name="description" rows="2" required></textarea></label>
+            <label>日期 <input name="pubDate" type="date" required /></label>
+            <label>标签 <input name="tags" placeholder="公告, 技术" /></label>
+            <label class="checkbox-row"><input name="featured" type="checkbox" /> 精选文章</label>
+            <label>封面图路径 <input name="heroImage" placeholder="./images/example.png" /></label>
+            <label>正文 Markdown <textarea name="body" rows="12"></textarea></label>
+            <div class="admin-actions">
+              <button class="button primary" type="submit">保存文章</button>
+              <button class="button secondary" type="button" data-article-reset>清空</button>
+              <button class="button danger" type="button" data-article-delete hidden
+                >删除文章</button
+              >
+            </div>
+            <p class="admin-note" data-article-status></p>
+          </form>
+        </div>
+      </section>
+
+      <section class="admin-panel" data-admin-panel="comments" hidden>
+        <div class="admin-panel-heading">
+          <h2>评论管理</h2>
+          <p>隐藏、恢复或删除评论。访客可以阅读公开评论，登录用户才能发布评论。</p>
+        </div>
+        <div class="admin-list" data-comments-list></div>
+      </section>
+
+      <section class="admin-panel" data-admin-panel="stats" hidden>
+        <div class="admin-panel-heading">
+          <h2>浏览统计</h2>
+          <p>查看文章总浏览量和近期访问情况。</p>
+        </div>
+        <div class="admin-list" data-stats-list></div>
+      </section>
+
+      <section class="admin-panel" data-admin-panel="profile" hidden>
+        <div class="admin-panel-heading">
+          <h2>个人介绍</h2>
+          <p>修改关于页展示的昵称、简介、正文和社交链接。</p>
+        </div>
+        <form class="admin-form narrow" data-profile-form>
+          <label>昵称 <input name="display_name" required /></label>
+          <label>一句话简介 <textarea name="bio" rows="2" required></textarea></label>
+          <label>关于页正文 <textarea name="about_markdown" rows="8" required></textarea></label>
+          <label>邮箱 <input name="email" type="email" /></label>
+          <label
+            >社交链接 JSON <textarea
+              name="social_links"
+              rows="5"
+              placeholder='[{"label":"GitHub","url":"https://github.com/..."}]'></textarea></label
+          >
+          <button class="button primary" type="submit">保存个人介绍</button>
+          <p class="admin-note" data-profile-status></p>
+        </form>
+      </section>
+
+      <section class="admin-panel" data-admin-panel="theme" hidden>
+        <div class="admin-panel-heading">
+          <h2>主页背景</h2>
+          <p>分别设置浅色和深色模式背景图。未设置时使用当前默认背景。</p>
+        </div>
+        <form class="admin-form narrow" data-theme-form>
+          <label class="checkbox-row"
+            ><input name="use_image_background" type="checkbox" /> 启用自定义图片背景</label
+          >
+          <label>浅色背景 URL <input name="light_background_url" /></label>
+          <label>上传浅色背景 <input name="light_file" type="file" accept="image/*" /></label>
+          <label>深色背景 URL <input name="dark_background_url" /></label>
+          <label>上传深色背景 <input name="dark_file" type="file" accept="image/*" /></label>
+          <label
+            >遮罩强度 <input
+              name="overlay_strength"
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+            /></label
+          >
+          <button class="button primary" type="submit">保存背景</button>
+          <p class="admin-note" data-theme-status></p>
+        </form>
+      </section>
+    </div>
+  </section>
+
+  <script type="application/json" id="admin-posts" set:html={JSON.stringify(postItems)} />
+</BaseLayout>
+
+<style>
+  .admin-shell {
+    padding: 44px 0 72px;
+  }
+
+  .admin-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 24px;
+    align-items: end;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 30px;
+  }
+
+  .admin-hero h1 {
+    font-size: clamp(42px, 7vw, 72px);
+  }
+
+  .admin-auth-card,
+  .admin-locked,
+  .admin-panel,
+  .admin-tabs {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    padding: 18px;
+    backdrop-filter: blur(16px);
+  }
+
+  .admin-locked {
+    margin-top: 24px;
+  }
+
+  .admin-console {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 18px;
+    margin-top: 24px;
+  }
+
+  .admin-tabs {
+    display: grid;
+    align-content: start;
+    gap: 8px;
+  }
+
+  .admin-tabs button {
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font: inherit;
+    padding: 10px 12px;
+    text-align: left;
+  }
+
+  .admin-tabs button[aria-current="true"] {
+    border-color: var(--line);
+    background: var(--surface-soft);
+    color: var(--text);
+  }
+
+  .admin-panel-heading {
+    margin-bottom: 20px;
+  }
+
+  .admin-grid.two {
+    display: grid;
+    grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.2fr);
+    gap: 18px;
+  }
+
+  .admin-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .admin-item {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 12px;
+  }
+
+  .admin-item h3,
+  .admin-item p {
+    margin: 0;
+  }
+
+  .admin-item p {
+    color: var(--muted);
+  }
+
+  .admin-item-actions,
+  .admin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .admin-form {
+    display: grid;
+    gap: 12px;
+  }
+
+  .admin-form.narrow {
+    max-width: 760px;
+  }
+
+  .admin-form label {
+    display: grid;
+    gap: 6px;
+    font-weight: 800;
+  }
+
+  .admin-form input,
+  .admin-form textarea {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text);
+    font: inherit;
+    padding: 10px 12px;
+  }
+
+  .checkbox-row {
+    display: flex !important;
+    grid-template-columns: none;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .checkbox-row input {
+    width: auto;
+  }
+
+  .button.danger {
+    border-color: rgba(255, 95, 120, 0.45);
+    color: #ff9aaa;
+  }
+
+  .admin-note {
+    color: var(--muted);
+  }
+
+  @media (max-width: 860px) {
+    .admin-hero,
+    .admin-console,
+    .admin-grid.two {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  // @ts-nocheck
+  import { getSupabaseClient, getUserLabel } from "../lib/supabase-browser";
+
+  const root = document.querySelector("[data-admin-root]");
+  const supabase = await getSupabaseClient();
+  const adminFunctionUrl = import.meta.env.PUBLIC_SUPABASE_ADMIN_FUNCTION_URL;
+  const posts = JSON.parse(document.getElementById("admin-posts")?.textContent ?? "[]");
+
+  const statusNode = root?.querySelector("[data-admin-status]");
+  const loginButton = root?.querySelector("[data-admin-login]");
+  const logoutButton = root?.querySelector("[data-admin-logout]");
+  const locked = root?.querySelector("[data-admin-locked]");
+  const consoleNode = root?.querySelector("[data-admin-console]");
+
+  const articleList = root?.querySelector("[data-article-list]");
+  const articleForm = root?.querySelector("[data-article-form]");
+  const articleStatus = root?.querySelector("[data-article-status]");
+  const articleDelete = root?.querySelector("[data-article-delete]");
+
+  const commentsList = root?.querySelector("[data-comments-list]");
+  const statsList = root?.querySelector("[data-stats-list]");
+  const profileForm = root?.querySelector("[data-profile-form]");
+  const themeForm = root?.querySelector("[data-theme-form]");
+
+  let session;
+  let isAdmin = false;
+  let currentArticleSlug = "";
+
+  const message = (node, value) => {
+    if (node) node.textContent = value;
+  };
+
+  const escapeHTML = (value = "") =>
+    value.replace(/[&<>"']/g, (char) => {
+      const map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" };
+      return map[char];
+    });
+
+  const requestAdminFunction = async (path, options = {}) => {
+    if (!adminFunctionUrl) throw new Error("PUBLIC_SUPABASE_ADMIN_FUNCTION_URL 尚未配置。");
+    const token = session?.access_token;
+    if (!token) throw new Error("请先登录。");
+
+    const response = await fetch(`${adminFunctionUrl}${path}`, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        ...(options.headers ?? {}),
+      },
+    });
+
+    const payload = await response.json();
+    if (!response.ok || payload.error) throw new Error(payload.error ?? "请求失败。");
+    return payload;
+  };
+
+  const parseTags = (value) =>
+    value
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+
+  const setArticleForm = (article = {}) => {
+    currentArticleSlug = article.slug ?? "";
+    articleForm.mode.value = currentArticleSlug ? "update" : "create";
+    articleForm.slug.value = article.slug ?? "";
+    articleForm.title.value = article.title ?? "";
+    articleForm.description.value = article.description ?? "";
+    articleForm.pubDate.value = article.pubDate ?? new Date().toISOString().slice(0, 10);
+    articleForm.tags.value = (article.tags ?? []).join(", ");
+    articleForm.featured.checked = Boolean(article.featured);
+    articleForm.heroImage.value = article.heroImage ?? "";
+    articleForm.body.value = article.body ?? "";
+    articleDelete.hidden = !currentArticleSlug;
+  };
+
+  const renderArticles = () => {
+    if (!articleList) return;
+    articleList.innerHTML = posts
+      .map(
+        (post) => `
+          <article class="admin-item">
+            <h3>${escapeHTML(post.title)}</h3>
+            <p>${escapeHTML(post.slug)} · ${escapeHTML(post.pubDate)}</p>
+            <div class="admin-item-actions">
+              <button class="button secondary" type="button" data-edit-article="${post.slug}">编辑</button>
+            </div>
+          </article>
+        `,
+      )
+      .join("");
+
+    articleList.querySelectorAll("[data-edit-article]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const slug = button.dataset.editArticle;
+        const post = posts.find((item) => item.slug === slug);
+        setArticleForm(post);
+        message(articleStatus, "正在读取文章正文...");
+        try {
+          const payload = await requestAdminFunction(`?slug=${encodeURIComponent(slug)}`);
+          articleForm.body.value = payload.content.replace(/^---[\s\S]*?---\s*/, "");
+          message(articleStatus, "文章已载入。");
+        } catch (error) {
+          message(articleStatus, error.message);
+        }
+      });
+    });
+  };
+
+  const renderComments = async () => {
+    if (!commentsList || !supabase) return;
+    const { data, error } = await supabase
+      .from("comments")
+      .select("id, post_slug, author_name, content, status, created_at")
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (error) {
+      commentsList.innerHTML = `<p>${escapeHTML(error.message)}</p>`;
+      return;
+    }
+
+    commentsList.innerHTML = (data ?? [])
+      .map(
+        (comment) => `
+          <article class="admin-item">
+            <h3>${escapeHTML(comment.author_name)} · ${escapeHTML(comment.status)}</h3>
+            <p>${escapeHTML(comment.post_slug)} · ${new Date(comment.created_at).toLocaleString("zh-CN")}</p>
+            <p>${escapeHTML(comment.content)}</p>
+            <div class="admin-item-actions">
+              <button class="button secondary" type="button" data-comment-status="visible" data-comment-id="${comment.id}">公开</button>
+              <button class="button secondary" type="button" data-comment-status="hidden" data-comment-id="${comment.id}">隐藏</button>
+              <button class="button danger" type="button" data-comment-status="deleted" data-comment-id="${comment.id}">删除</button>
+            </div>
+          </article>
+        `,
+      )
+      .join("");
+
+    commentsList.querySelectorAll("[data-comment-id]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        await supabase
+          .from("comments")
+          .update({ status: button.dataset.commentStatus })
+          .eq("id", button.dataset.commentId);
+        await renderComments();
+      });
+    });
+  };
+
+  const renderStats = async () => {
+    if (!statsList || !supabase) return;
+    const { data, error } = await supabase
+      .from("post_view_counts")
+      .select("post_slug, total_views, views_7d, views_30d, last_viewed_at")
+      .order("total_views", { ascending: false });
+
+    if (error) {
+      statsList.innerHTML = `<p>${escapeHTML(error.message)}</p>`;
+      return;
+    }
+
+    statsList.innerHTML = (data ?? [])
+      .map(
+        (row) => `
+          <article class="admin-item">
+            <h3>${escapeHTML(row.post_slug)}</h3>
+            <p>总浏览 ${row.total_views} · 7 天 ${row.views_7d} · 30 天 ${row.views_30d}</p>
+          </article>
+        `,
+      )
+      .join("");
+  };
+
+  const loadProfile = async () => {
+    if (!profileForm || !supabase) return;
+    const { data } = await supabase.from("site_profile").select("*").eq("id", true).maybeSingle();
+    if (!data) return;
+    profileForm.display_name.value = data.display_name ?? "";
+    profileForm.bio.value = data.bio ?? "";
+    profileForm.about_markdown.value = data.about_markdown ?? "";
+    profileForm.email.value = data.email ?? "";
+    profileForm.social_links.value = JSON.stringify(data.social_links ?? [], null, 2);
+  };
+
+  const loadTheme = async () => {
+    if (!themeForm || !supabase) return;
+    const { data } = await supabase.from("site_theme").select("*").eq("id", true).maybeSingle();
+    if (!data) return;
+    themeForm.use_image_background.checked = Boolean(data.use_image_background);
+    themeForm.light_background_url.value = data.light_background_url ?? "";
+    themeForm.dark_background_url.value = data.dark_background_url ?? "";
+    themeForm.overlay_strength.value = data.overlay_strength ?? 0.5;
+  };
+
+  const uploadBackground = async (file, prefix) => {
+    if (!file) return "";
+    const path = `${prefix}/${Date.now()}-${file.name}`;
+    const { error } = await supabase.storage.from("site-assets").upload(path, file, {
+      cacheControl: "31536000",
+      upsert: true,
+    });
+    if (error) throw error;
+    const { data } = supabase.storage.from("site-assets").getPublicUrl(path);
+    return data.publicUrl;
+  };
+
+  const initializeAdmin = async () => {
+    if (!supabase) {
+      message(
+        statusNode,
+        "Supabase 尚未配置。请先填写 PUBLIC_SUPABASE_URL 和 PUBLIC_SUPABASE_ANON_KEY。",
+      );
+      return;
+    }
+
+    const { data } = await supabase.auth.getSession();
+    session = data.session;
+    const user = session?.user;
+
+    loginButton.hidden = Boolean(user);
+    logoutButton.hidden = !user;
+
+    if (!user) {
+      message(statusNode, "请登录后进入后台。");
+      locked.hidden = false;
+      return;
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    isAdmin = profile?.role === "admin";
+
+    if (!isAdmin) {
+      message(statusNode, `${getUserLabel(user)} 已登录，但没有后台权限。`);
+      locked.hidden = false;
+      return;
+    }
+
+    message(statusNode, `${getUserLabel(user)}，欢迎回来。`);
+    locked.hidden = true;
+    consoleNode.hidden = false;
+    renderArticles();
+    await Promise.all([renderComments(), renderStats(), loadProfile(), loadTheme()]);
+  };
+
+  loginButton?.addEventListener("click", async () => {
+    await supabase?.auth.signInWithOAuth({
+      provider: "github",
+      options: { redirectTo: window.location.href },
+    });
+  });
+
+  logoutButton?.addEventListener("click", async () => {
+    await supabase?.auth.signOut();
+    window.location.reload();
+  });
+
+  root?.querySelectorAll("[data-admin-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      root
+        .querySelectorAll("[data-admin-tab]")
+        .forEach((tab) => tab.removeAttribute("aria-current"));
+      button.setAttribute("aria-current", "true");
+      root.querySelectorAll("[data-admin-panel]").forEach((panel) => {
+        panel.hidden = panel.dataset.adminPanel !== button.dataset.adminTab;
+      });
+    });
+  });
+
+  articleForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    message(articleStatus, "正在保存文章...");
+    const payload = {
+      slug: articleForm.slug.value,
+      title: articleForm.title.value,
+      description: articleForm.description.value,
+      pubDate: articleForm.pubDate.value,
+      tags: parseTags(articleForm.tags.value),
+      featured: articleForm.featured.checked,
+      heroImage: articleForm.heroImage.value,
+      body: articleForm.body.value,
+    };
+
+    try {
+      await requestAdminFunction("", {
+        method: currentArticleSlug ? "PUT" : "POST",
+        body: JSON.stringify(payload),
+      });
+      message(articleStatus, "已保存。GitHub Pages 会自动重新部署。");
+    } catch (error) {
+      message(articleStatus, error.message);
+    }
+  });
+
+  root?.querySelector("[data-article-reset]")?.addEventListener("click", () => {
+    setArticleForm();
+    message(articleStatus, "");
+  });
+
+  articleDelete?.addEventListener("click", async () => {
+    if (!currentArticleSlug || !confirm(`确定删除 ${currentArticleSlug}？`)) return;
+    try {
+      await requestAdminFunction(`?slug=${encodeURIComponent(currentArticleSlug)}`, {
+        method: "DELETE",
+      });
+      message(articleStatus, "已删除。GitHub Pages 会自动重新部署。");
+    } catch (error) {
+      message(articleStatus, error.message);
+    }
+  });
+
+  profileForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const status = root.querySelector("[data-profile-status]");
+    try {
+      await supabase
+        .from("site_profile")
+        .update({
+          display_name: profileForm.display_name.value,
+          bio: profileForm.bio.value,
+          about_markdown: profileForm.about_markdown.value,
+          email: profileForm.email.value || null,
+          social_links: JSON.parse(profileForm.social_links.value || "[]"),
+        })
+        .eq("id", true);
+      message(status, "已保存个人介绍。");
+    } catch (error) {
+      message(status, error.message);
+    }
+  });
+
+  themeForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const status = root.querySelector("[data-theme-status]");
+    message(status, "正在保存背景...");
+    try {
+      const lightUpload = await uploadBackground(themeForm.light_file.files?.[0], "backgrounds");
+      const darkUpload = await uploadBackground(themeForm.dark_file.files?.[0], "backgrounds");
+      await supabase
+        .from("site_theme")
+        .update({
+          use_image_background: themeForm.use_image_background.checked,
+          light_background_url: lightUpload || themeForm.light_background_url.value || null,
+          dark_background_url: darkUpload || themeForm.dark_background_url.value || null,
+          overlay_strength: Number(themeForm.overlay_strength.value || 0.5),
+        })
+        .eq("id", true);
+      message(status, "已保存背景配置。");
+    } catch (error) {
+      message(status, error.message);
+    }
+  });
+
+  setArticleForm();
+  await initializeAdmin();
+</script>

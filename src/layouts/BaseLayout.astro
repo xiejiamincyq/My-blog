@@ -92,5 +92,37 @@ const lightBackgroundImage = `url("${sitePath("images/sunny-anime-light-bg-4k.pn
       <slot />
     </main>
     <Footer />
+    <script>
+      import { getSupabaseClient } from "../lib/supabase-browser";
+
+      const supabase = await getSupabaseClient();
+      if (supabase) {
+        const { data } = await supabase
+          .from("site_theme")
+          .select(
+            "light_background_url, dark_background_url, use_image_background, overlay_strength",
+          )
+          .eq("id", true)
+          .maybeSingle();
+
+        if (data?.use_image_background) {
+          if (data.dark_background_url) {
+            document.body.style.setProperty(
+              "--background-image",
+              `url("${data.dark_background_url}")`,
+            );
+          }
+          if (data.light_background_url) {
+            document.body.style.setProperty(
+              "--light-background-image",
+              `url("${data.light_background_url}")`,
+            );
+          }
+          if (typeof data.overlay_strength === "number") {
+            document.body.style.setProperty("--managed-bg-overlay", String(data.overlay_strength));
+          }
+        }
+      }
+    </script>
   </body>
 </html>

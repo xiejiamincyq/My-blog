@@ -1,0 +1,65 @@
+<section class="content-section" data-site-profile>
+  <h2 data-profile-name>我会写些什么</h2>
+  <div data-profile-about>
+    <p>
+      计划中的内容包括：做项目时踩过的坑、读书后的摘记与反思、对工具和方法的整理，
+      以及偶尔的生活随笔。文章会尽量写得清楚、诚实、可回看。
+    </p>
+  </div>
+</section>
+
+<section class="content-section" data-site-links>
+  <h2>联系方式</h2>
+  <div data-profile-links>
+    <p>
+      你可以在这里放邮箱、GitHub、微博、公众号或其他社交链接。第一版先留出位置，
+      后续可以按你的真实信息替换。
+    </p>
+  </div>
+</section>
+
+<script>
+  // @ts-nocheck
+  import { getSupabaseClient } from "../lib/supabase-browser";
+
+  const supabase = await getSupabaseClient();
+  if (supabase) {
+    const { data } = await supabase
+      .from("site_profile")
+      .select("display_name, bio, about_markdown, email, social_links")
+      .eq("id", true)
+      .maybeSingle();
+
+    if (data) {
+      const name = document.querySelector("[data-profile-name]");
+      const about = document.querySelector("[data-profile-about]");
+      const links = document.querySelector("[data-profile-links]");
+
+      if (name && data.display_name) {
+        name.textContent = `关于 ${data.display_name}`;
+      }
+
+      if (about && data.about_markdown) {
+        about.innerHTML = data.about_markdown
+          .split(/\n{2,}/)
+          .map(
+            (paragraph) =>
+              `<p>${paragraph.replace(/[&<>]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[char])}</p>`,
+          )
+          .join("");
+      }
+
+      const socialLinks = Array.isArray(data.social_links) ? data.social_links : [];
+      const linkItems = [
+        data.email && { label: "邮箱", url: `mailto:${data.email}` },
+        ...socialLinks,
+      ].filter(Boolean);
+
+      if (links && linkItems.length > 0) {
+        links.innerHTML = `<ul class="profile-links">${linkItems
+          .map((item) => `<li><a href="${item.url}" rel="me">${item.label}</a></li>`)
+          .join("")}</ul>`;
+      }
+    }
+  }
+</script>

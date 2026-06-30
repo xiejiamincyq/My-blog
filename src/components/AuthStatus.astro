@@ -1,0 +1,107 @@
+<div class="auth-status" data-auth-status>
+  <button class="auth-button" type="button" data-auth-login>登录</button>
+  <div class="auth-user" data-auth-user hidden>
+    <img data-auth-avatar alt="" />
+    <span data-auth-name></span>
+    <button class="auth-button ghost" type="button" data-auth-logout>退出</button>
+  </div>
+</div>
+
+<style>
+  .auth-status {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .auth-button {
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.7);
+    color: var(--text);
+    cursor: pointer;
+    font: inherit;
+    font-weight: 800;
+    min-height: 36px;
+    padding: 6px 13px;
+  }
+
+  .auth-button:hover {
+    border-color: rgba(88, 166, 255, 0.45);
+    color: var(--accent-strong);
+  }
+
+  .auth-button.ghost {
+    background: transparent;
+    color: var(--muted);
+  }
+
+  .auth-user {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .auth-user[hidden] {
+    display: none;
+  }
+
+  .auth-user img {
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    object-fit: cover;
+  }
+</style>
+
+<script>
+  // @ts-nocheck
+  import { getSupabaseClient, getUserLabel } from "../lib/supabase-browser";
+
+  const root = document.querySelector("[data-auth-status]");
+  const loginButton = root?.querySelector("[data-auth-login]");
+  const logoutButton = root?.querySelector("[data-auth-logout]");
+  const userBox = root?.querySelector("[data-auth-user]");
+  const nameNode = root?.querySelector("[data-auth-name]");
+  const avatarNode = root?.querySelector("[data-auth-avatar]");
+  const supabase = await getSupabaseClient();
+
+  const render = async () => {
+    if (!root) return;
+
+    if (!supabase) {
+      root.hidden = true;
+      return;
+    }
+
+    const { data } = await supabase.auth.getUser();
+    const user = data.user;
+    loginButton.hidden = Boolean(user);
+    userBox.hidden = !user;
+
+    if (user) {
+      nameNode.textContent = getUserLabel(user);
+      avatarNode.src = user.user_metadata?.avatar_url ?? "";
+      avatarNode.hidden = !avatarNode.src;
+    }
+  };
+
+  loginButton?.addEventListener("click", async () => {
+    await supabase?.auth.signInWithOAuth({
+      provider: "github",
+      options: { redirectTo: window.location.href },
+    });
+  });
+
+  logoutButton?.addEventListener("click", async () => {
+    await supabase?.auth.signOut();
+    await render();
+    window.dispatchEvent(new CustomEvent("blog-auth-change"));
+  });
+
+  supabase?.auth.onAuthStateChange(() => {
+    render();
+    window.dispatchEvent(new CustomEvent("blog-auth-change"));
+  });
+
+  render();
+</script>

@@ -1,0 +1,45 @@
+---
+interface Props {
+  postSlug: string;
+}
+
+const { postSlug } = Astro.props;
+---
+
+<span class="view-counter" data-view-counter data-post-slug={postSlug}>
+  <span data-view-count>--</span> 次浏览
+</span>
+
+<script>
+  // @ts-nocheck
+  import { getSupabaseClient, hashVisitor } from "../lib/supabase-browser";
+
+  const node = document.querySelector("[data-view-counter]");
+  const countNode = node?.querySelector("[data-view-count]");
+  const postSlug = node?.dataset.postSlug;
+  const supabase = await getSupabaseClient();
+
+  if (node && countNode && postSlug && supabase) {
+    const visitorHash = await hashVisitor();
+    const storageKey = `viewed:${postSlug}`;
+    const lastViewed = Number(localStorage.getItem(storageKey) ?? 0);
+    const oneHour = 60 * 60 * 1000;
+
+    if (Date.now() - lastViewed > oneHour) {
+      await supabase.from("post_views").insert({
+        post_slug: postSlug,
+        visitor_hash: visitorHash,
+      });
+      localStorage.setItem(storageKey, String(Date.now()));
+    }
+
+    const { count } = await supabase
+      .from("post_views")
+      .select("id", { count: "exact", head: true })
+      .eq("post_slug", postSlug);
+
+    countNode.textContent = String(count ?? 0);
+  } else if (node) {
+    node.hidden = true;
+  }
+</script>

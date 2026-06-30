@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import SiteProfile from "../components/SiteProfile.astro";
 ---
 
 <BaseLayout title="关于" description="关于这个博客和写作者。">
@@ -12,19 +13,5 @@ import BaseLayout from "../layouts/BaseLayout.astro";
     </p>
   </section>
 
-  <section class="content-section">
-    <h2>我会写些什么</h2>
-    <p>
-      计划中的内容包括：做项目时踩过的坑、读书后的摘记与反思、对工具和方法的整理，
-      以及偶尔的生活随笔。文章会尽量写得清楚、诚实、可回看。
-    </p>
-  </section>
-
-  <section class="content-section">
-    <h2>联系方式</h2>
-    <p>
-      你可以在这里放邮箱、GitHub、微博、公众号或其他社交链接。第一版先留出位置，
-      后续可以按你的真实信息替换。
-    </p>
-  </section>
+  <SiteProfile />
 </BaseLayout>
