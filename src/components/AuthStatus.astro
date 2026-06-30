@@ -64,6 +64,25 @@
   const nameNode = root?.querySelector("[data-auth-name]");
   const avatarNode = root?.querySelector("[data-auth-avatar]");
   const supabase = await getSupabaseClient();
+  const adminRedirectKey = "blog_admin_redirect_after_login";
+  const adminUrl = new URL(`${import.meta.env.BASE_URL}admin/`, window.location.origin).href;
+
+  const maybeRedirectAdmin = async (user) => {
+    if (!user || window.location.href === adminUrl) return;
+    if (sessionStorage.getItem(adminRedirectKey) !== "true") return;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    sessionStorage.removeItem(adminRedirectKey);
+
+    if (profile?.role === "admin") {
+      window.location.assign(adminUrl);
+    }
+  };
 
   const render = async () => {
     if (!root) return;
@@ -82,10 +101,12 @@
       nameNode.textContent = getUserLabel(user);
       avatarNode.src = user.user_metadata?.avatar_url ?? "";
       avatarNode.hidden = !avatarNode.src;
+      await maybeRedirectAdmin(user);
     }
   };
 
   loginButton?.addEventListener("click", async () => {
+    sessionStorage.setItem(adminRedirectKey, "true");
     await supabase?.auth.signInWithOAuth({
       provider: "github",
       options: { redirectTo: window.location.href },

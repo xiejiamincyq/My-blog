@@ -142,7 +142,7 @@ const postItems = posts.map((post) => ({
     </div>
   </section>
 
-  <script type="application/json" id="admin-posts" set:html={JSON.stringify(postItems)} />
+  <script is:inline type="application/json" id="admin-posts" set:html={JSON.stringify(postItems)} />
 </BaseLayout>
 
 <style>
