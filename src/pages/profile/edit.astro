@@ -1,0 +1,221 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="修改个人信息" description="修改你的昵称和个性签名。">
+  <section class="profile-shell" data-profile-edit-root>
+    <header class="profile-hero">
+      <div>
+        <p class="eyebrow">Profile</p>
+        <h1>修改个人信息</h1>
+        <p>修改你在站内显示的昵称和个性签名。</p>
+      </div>
+      <div class="profile-auth-card">
+        <p data-profile-status>正在检查登录状态...</p>
+        <button class="button primary" type="button" data-profile-login hidden
+          >使用 GitHub 登录</button
+        >
+        <button class="button secondary" type="button" data-profile-logout hidden>退出登录</button>
+      </div>
+    </header>
+
+    <div class="profile-locked" data-profile-locked hidden>
+      <h2>请先登录</h2>
+      <p>登录后就可以编辑自己的昵称和个性签名。</p>
+    </div>
+
+    <form class="profile-form" data-profile-form hidden>
+      <label>昵称 <input name="display_name" maxlength="80" required /></label>
+      <label>个性签名 <textarea name="signature" rows="3" maxlength="240"></textarea></label>
+      <div class="profile-actions">
+        <button class="button primary" type="submit">保存个人信息</button>
+        <a class="button secondary" href="../">返回查看个人信息</a>
+      </div>
+      <p class="profile-note" data-profile-save-status></p>
+    </form>
+  </section>
+</BaseLayout>
+
+<style>
+  .profile-shell {
+    padding: 44px 0 72px;
+  }
+
+  .profile-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 24px;
+    align-items: end;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 30px;
+  }
+
+  .profile-hero h1 {
+    font-size: clamp(42px, 7vw, 72px);
+  }
+
+  .profile-auth-card,
+  .profile-locked,
+  .profile-form {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    padding: 18px;
+    backdrop-filter: blur(16px);
+  }
+
+  .profile-locked,
+  .profile-form {
+    margin-top: 24px;
+  }
+
+  .profile-form {
+    display: grid;
+    gap: 12px;
+    max-width: 760px;
+  }
+
+  .profile-form label {
+    display: grid;
+    gap: 6px;
+    font-weight: 800;
+  }
+
+  .profile-form input,
+  .profile-form textarea {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text);
+    font: inherit;
+    padding: 10px 12px;
+  }
+
+  .profile-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .profile-note {
+    color: var(--muted);
+  }
+
+  @media (max-width: 860px) {
+    .profile-hero {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  // @ts-nocheck
+  import { getSupabaseClient, getUserLabel } from "../../lib/supabase-browser";
+
+  const root = document.querySelector("[data-profile-edit-root]");
+  const supabase = await getSupabaseClient();
+
+  const statusNode = root?.querySelector("[data-profile-status]");
+  const loginButton = root?.querySelector("[data-profile-login]");
+  const logoutButton = root?.querySelector("[data-profile-logout]");
+  const locked = root?.querySelector("[data-profile-locked]");
+  const profileForm = root?.querySelector("[data-profile-form]");
+  const saveStatus = root?.querySelector("[data-profile-save-status]");
+
+  let session;
+
+  const message = (node, value) => {
+    if (node) node.textContent = value;
+  };
+
+  const loadProfile = async (user) => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("display_name, signature")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    profileForm.display_name.value = data?.display_name ?? getUserLabel(user);
+    profileForm.signature.value = data?.signature ?? "";
+  };
+
+  const initializeProfile = async () => {
+    if (!supabase) {
+      message(
+        statusNode,
+        "Supabase 尚未配置。请先填写 PUBLIC_SUPABASE_URL 和 PUBLIC_SUPABASE_ANON_KEY。",
+      );
+      return;
+    }
+
+    const { data } = await supabase.auth.getSession();
+    session = data.session;
+    const user = session?.user;
+
+    loginButton.hidden = Boolean(user);
+    logoutButton.hidden = !user;
+    locked.hidden = Boolean(user);
+    profileForm.hidden = !user;
+
+    if (!user) {
+      message(statusNode, "请登录后编辑个人信息。");
+      return;
+    }
+
+    await loadProfile(user);
+    message(statusNode, `${getUserLabel(user)}，可以编辑你的个人信息。`);
+  };
+
+  loginButton?.addEventListener("click", async () => {
+    await supabase?.auth.signInWithOAuth({
+      provider: "github",
+      options: { redirectTo: window.location.href },
+    });
+  });
+
+  logoutButton?.addEventListener("click", async () => {
+    await supabase?.auth.signOut();
+    window.location.reload();
+  });
+
+  profileForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    message(saveStatus, "正在保存...");
+
+    const user = session?.user;
+    if (!user) {
+      message(saveStatus, "请先登录。");
+      return;
+    }
+
+    try {
+      const displayName = profileForm.display_name.value.trim();
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          display_name: displayName,
+          signature: profileForm.signature.value.trim() || null,
+        })
+        .eq("id", user.id);
+
+      if (error) throw error;
+
+      const { error: commentError } = await supabase
+        .from("comments")
+        .update({ author_name: displayName })
+        .eq("user_id", user.id)
+        .eq("status", "visible");
+
+      if (commentError) throw commentError;
+
+      message(saveStatus, "已保存个人信息。");
+      message(statusNode, `${displayName}，可以编辑你的个人信息。`);
+      window.dispatchEvent(new CustomEvent("blog-auth-change"));
+    } catch (error) {
+      message(saveStatus, error.message);
+    }
+  });
+
+  await initializeProfile();
+</script>

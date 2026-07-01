@@ -10,6 +10,8 @@ const postItems = posts.map((post) => ({
   pubDate: post.data.pubDate.toISOString().slice(0, 10),
   tags: post.data.tags,
   featured: post.data.featured,
+  heroImage: post.data.heroImage?.src ?? "",
+  body: post.body ?? "",
 }));
 ---
 
@@ -38,10 +40,10 @@ const postItems = posts.map((post) => ({
     <div class="admin-console" data-admin-console hidden>
       <aside class="admin-tabs" aria-label="后台导航">
         <button type="button" data-admin-tab="articles" aria-current="true">文章</button>
-        <button type="button" data-admin-tab="comments">评论</button>
-        <button type="button" data-admin-tab="stats">统计</button>
-        <button type="button" data-admin-tab="profile">个人介绍</button>
-        <button type="button" data-admin-tab="theme">主页背景</button>
+        <button type="button" data-admin-tab="comments" data-admin-only>评论</button>
+        <button type="button" data-admin-tab="stats" data-admin-only>统计</button>
+        <button type="button" data-admin-tab="profile" data-admin-only>个人介绍</button>
+        <button type="button" data-admin-tab="theme" data-admin-only>主页背景</button>
       </aside>
 
       <section class="admin-panel" data-admin-panel="articles">
@@ -49,14 +51,46 @@ const postItems = posts.map((post) => ({
           <h2>文章管理</h2>
           <p>新增、修改或删除 Markdown 文章。保存后会写入 GitHub 仓库并触发部署。</p>
         </div>
-        <div class="admin-grid two">
-          <div>
+        <div class="article-choice-grid" aria-label="文章管理方式">
+          <button
+            class="article-choice"
+            type="button"
+            data-article-mode="existing"
+            aria-current="true"
+          >
+            <span>现有文章</span>
+            <small>管理现有文章</small>
+          </button>
+          <button class="article-choice" type="button" data-article-mode="new">
+            <span>新增文章</span>
+            <small>增加我的文章</small>
+          </button>
+        </div>
+        <div class="article-workspace">
+          <div data-article-section="existing">
             <h3>现有文章</h3>
             <div class="admin-list" data-article-list></div>
+            <div class="article-editor-slot" data-existing-article-editor hidden>
+              <h3 class="article-editor-title">编辑文章</h3>
+            </div>
           </div>
-          <form class="admin-form" data-article-form>
+          <div data-article-section="new" hidden>
+            <div class="article-editor-slot" data-new-article-editor>
+              <h3 class="article-editor-title">新增文章</h3>
+            </div>
+          </div>
+          <form class="admin-form" data-article-form hidden>
             <input type="hidden" name="mode" value="create" />
-            <label>Slug <input name="slug" placeholder="my-new-post" required /></label>
+            <label
+              >Slug
+              <div class="admin-inline-control">
+                <input name="slug" placeholder="my-new-post" required />
+                <button class="button secondary" type="button" data-generate-slug>自动生成</button>
+              </div>
+              <span class="admin-field-note" data-slug-help
+                >只能使用小写英文、数字和短横线；不能重复，也不能使用 admin、api 等保留字段。</span
+              >
+            </label>
             <label>标题 <input name="title" required /></label>
             <label>简介 <textarea name="description" rows="2" required></textarea></label>
             <label>日期 <input name="pubDate" type="date" required /></label>
@@ -64,6 +98,17 @@ const postItems = posts.map((post) => ({
             <label class="checkbox-row"><input name="featured" type="checkbox" /> 精选文章</label>
             <label>封面图路径 <input name="heroImage" placeholder="./images/example.png" /></label>
             <label>正文 Markdown <textarea name="body" rows="12"></textarea></label>
+            <label
+              >上传封面图
+              <input
+                name="heroFile"
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+              />
+              <span class="admin-field-note"
+                >上传后会保存到文章图片目录，并自动填入封面图路径。</span
+              >
+            </label>
             <div class="admin-actions">
               <button class="button primary" type="submit">保存文章</button>
               <button class="button secondary" type="button" data-article-reset>清空</button>
@@ -76,23 +121,47 @@ const postItems = posts.map((post) => ({
         </div>
       </section>
 
-      <section class="admin-panel" data-admin-panel="comments" hidden>
+      <section class="admin-panel" data-admin-panel="comments" data-admin-only hidden>
         <div class="admin-panel-heading">
           <h2>评论管理</h2>
           <p>隐藏、恢复或删除评论。访客可以阅读公开评论，登录用户才能发布评论。</p>
         </div>
+        <div class="admin-metric-grid" data-comments-summary></div>
+        <div class="admin-toolbar" data-comments-toolbar>
+          <label
+            >状态
+            <select data-comment-filter>
+              <option value="all">全部</option>
+              <option value="visible">公开</option>
+              <option value="hidden">隐藏</option>
+              <option value="deleted">已删除</option>
+            </select>
+          </label>
+          <label
+            >排序
+            <select data-comment-sort>
+              <option value="newest">最新优先</option>
+              <option value="oldest">最早优先</option>
+            </select>
+          </label>
+          <label
+            >搜索
+            <input data-comment-search placeholder="作者、内容或文章 slug" />
+          </label>
+        </div>
+        <p class="admin-note" data-comments-status></p>
         <div class="admin-list" data-comments-list></div>
       </section>
 
-      <section class="admin-panel" data-admin-panel="stats" hidden>
+      <section class="admin-panel" data-admin-panel="stats" data-admin-only hidden>
         <div class="admin-panel-heading">
-          <h2>浏览统计</h2>
-          <p>查看文章总浏览量和近期访问情况。</p>
+          <h2>浏览与点赞统计</h2>
+          <p>查看文章总浏览量、近期访问情况和点赞数。</p>
         </div>
         <div class="admin-list" data-stats-list></div>
       </section>
 
-      <section class="admin-panel" data-admin-panel="profile" hidden>
+      <section class="admin-panel" data-admin-panel="profile" data-admin-only hidden>
         <div class="admin-panel-heading">
           <h2>个人介绍</h2>
           <p>修改关于页展示的昵称、简介、正文和社交链接。</p>
@@ -113,7 +182,7 @@ const postItems = posts.map((post) => ({
         </form>
       </section>
 
-      <section class="admin-panel" data-admin-panel="theme" hidden>
+      <section class="admin-panel" data-admin-panel="theme" data-admin-only hidden>
         <div class="admin-panel-heading">
           <h2>主页背景</h2>
           <p>分别设置浅色和深色模式背景图。未设置时使用当前默认背景。</p>
@@ -212,6 +281,71 @@ const postItems = posts.map((post) => ({
     margin-bottom: 20px;
   }
 
+  .admin-panel [hidden] {
+    display: none !important;
+  }
+
+  .article-choice-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .article-choice {
+    display: grid;
+    gap: 6px;
+    min-height: 112px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text);
+    cursor: pointer;
+    font: inherit;
+    padding: 18px;
+    text-align: left;
+    transition:
+      border-color 160ms ease,
+      background 160ms ease,
+      box-shadow 160ms ease,
+      transform 160ms ease;
+  }
+
+  .article-choice:hover,
+  .article-choice[aria-current="true"] {
+    border-color: rgba(71, 233, 255, 0.48);
+    background: var(--surface-soft);
+    box-shadow: 0 0 22px rgba(71, 233, 255, 0.12);
+    transform: translateY(-1px);
+  }
+
+  .article-choice span {
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1.2;
+  }
+
+  .article-choice small {
+    color: var(--muted);
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .article-workspace {
+    display: grid;
+    gap: 18px;
+  }
+
+  .article-editor-slot {
+    margin-top: 18px;
+    border-top: 1px solid var(--line);
+    padding-top: 18px;
+  }
+
+  .article-editor-title {
+    margin: 0 0 14px;
+  }
+
   .admin-grid.two {
     display: grid;
     grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.2fr);
@@ -220,14 +354,218 @@ const postItems = posts.map((post) => ({
 
   .admin-list {
     display: grid;
+    gap: 16px;
+  }
+
+  .admin-toolbar {
+    display: grid;
+    grid-template-columns: 150px 150px minmax(220px, 1fr);
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .admin-toolbar label {
+    display: grid;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 800;
+  }
+
+  .admin-toolbar input,
+  .admin-toolbar select {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text);
+    font: inherit;
+    padding: 8px 10px;
+  }
+
+  .admin-metric-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .admin-metric {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.045);
+    padding: 12px;
+  }
+
+  .admin-metric strong {
+    display: block;
+    font-size: 24px;
+    line-height: 1.1;
+  }
+
+  .admin-metric span {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 800;
   }
 
   .admin-item {
     border: 1px solid var(--line);
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.04);
-    padding: 12px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.035));
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+    padding: 16px;
+  }
+
+  .comment-admin-item {
+    display: grid;
+    gap: 12px;
+  }
+
+  .comment-admin-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .comment-admin-author {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+  }
+
+  .comment-admin-author img,
+  .comment-admin-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+  }
+
+  .comment-admin-author img {
+    object-fit: cover;
+  }
+
+  .comment-admin-avatar {
+    display: inline-grid;
+    place-items: center;
+    background: rgba(71, 233, 255, 0.16);
+    color: var(--accent-strong);
+    font-weight: 900;
+  }
+
+  .comment-admin-meta {
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .comment-admin-body {
+    margin: 0;
+    max-height: 9.6em;
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 3px 10px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 900;
+  }
+
+  .status-badge.visible {
+    border-color: rgba(63, 220, 151, 0.45);
+    color: #75e5ae;
+  }
+
+  .status-badge.hidden {
+    border-color: rgba(169, 186, 208, 0.35);
+  }
+
+  .status-badge.deleted {
+    border-color: rgba(255, 95, 120, 0.45);
+    color: #ff9aaa;
+  }
+
+  .article-list-item {
+    display: grid;
+    gap: 12px;
+    border-color: rgba(71, 233, 255, 0.34);
+    border-left: 4px solid var(--accent);
+    background:
+      linear-gradient(90deg, rgba(71, 233, 255, 0.12), transparent 52%),
+      linear-gradient(180deg, rgba(18, 31, 48, 0.9), rgba(8, 13, 24, 0.76));
+    box-shadow:
+      0 16px 38px rgba(0, 0, 0, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    padding: 18px 18px 18px 20px;
+  }
+
+  .article-list-item h3 {
+    font-size: 23px;
+  }
+
+  .article-list-item p {
+    font-size: 16px;
+  }
+
+  .article-list-item .button {
+    width: fit-content;
+  }
+
+  :global(.admin-item) {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.035));
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+    padding: 16px;
+  }
+
+  :global(.article-list-item) {
+    display: grid;
+    gap: 12px;
+    border-color: rgba(71, 233, 255, 0.34);
+    border-left: 4px solid var(--accent);
+    background:
+      linear-gradient(90deg, rgba(71, 233, 255, 0.12), transparent 52%),
+      linear-gradient(180deg, rgba(18, 31, 48, 0.9), rgba(8, 13, 24, 0.76));
+    box-shadow:
+      0 16px 38px rgba(0, 0, 0, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    padding: 18px 18px 18px 20px;
+  }
+
+  :global(.article-list-item h3),
+  :global(.article-list-item p) {
+    margin: 0;
+  }
+
+  :global(.article-list-item h3) {
+    font-size: 23px;
+  }
+
+  :global(.article-list-item p) {
+    color: var(--muted);
+    font-size: 16px;
+  }
+
+  :global(.admin-item-actions) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  :global(.article-list-item .button) {
+    width: fit-content;
   }
 
   .admin-item h3,
@@ -273,6 +611,26 @@ const postItems = posts.map((post) => ({
     padding: 10px 12px;
   }
 
+  .admin-inline-control {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .admin-field-note {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .admin-field-note[data-state="error"] {
+    color: #ff9aaa;
+  }
+
+  .admin-field-note[data-state="ok"] {
+    color: var(--accent-strong);
+  }
+
   .checkbox-row {
     display: flex !important;
     grid-template-columns: none;
@@ -296,8 +654,15 @@ const postItems = posts.map((post) => ({
   @media (max-width: 860px) {
     .admin-hero,
     .admin-console,
-    .admin-grid.two {
+    .admin-grid.two,
+    .admin-toolbar,
+    .admin-metric-grid,
+    .article-choice-grid {
       grid-template-columns: 1fr;
+    }
+
+    .comment-admin-head {
+      flex-direction: column;
     }
   }
 </style>
@@ -321,8 +686,18 @@ const postItems = posts.map((post) => ({
   const articleForm = root?.querySelector("[data-article-form]");
   const articleStatus = root?.querySelector("[data-article-status]");
   const articleDelete = root?.querySelector("[data-article-delete]");
+  const slugHelp = root?.querySelector("[data-slug-help]");
+  const articleModeButtons = root?.querySelectorAll("[data-article-mode]") ?? [];
+  const articleSections = root?.querySelectorAll("[data-article-section]") ?? [];
+  const existingArticleEditor = root?.querySelector("[data-existing-article-editor]");
+  const newArticleEditor = root?.querySelector("[data-new-article-editor]");
 
   const commentsList = root?.querySelector("[data-comments-list]");
+  const commentsSummary = root?.querySelector("[data-comments-summary]");
+  const commentsStatus = root?.querySelector("[data-comments-status]");
+  const commentFilter = root?.querySelector("[data-comment-filter]");
+  const commentSort = root?.querySelector("[data-comment-sort]");
+  const commentSearch = root?.querySelector("[data-comment-search]");
   const statsList = root?.querySelector("[data-stats-list]");
   const profileForm = root?.querySelector("[data-profile-form]");
   const themeForm = root?.querySelector("[data-theme-form]");
@@ -330,16 +705,66 @@ const postItems = posts.map((post) => ({
   let session;
   let isAdmin = false;
   let currentArticleSlug = "";
+  let articleEditorContext = "new";
+  let commentItems = [];
+
+  const reservedSlugs = new Set([
+    "admin",
+    "api",
+    "about",
+    "blog",
+    "tags",
+    "rss",
+    "robots",
+    "profile",
+    "login",
+    "logout",
+    "index",
+    "search",
+    "assets",
+    "_astro",
+    "pagefind",
+    "comments",
+    "stats",
+    "theme",
+    "new",
+    "edit",
+  ]);
 
   const message = (node, value) => {
     if (node) node.textContent = value;
   };
 
   const escapeHTML = (value = "") =>
-    value.replace(/[&<>"']/g, (char) => {
+    String(value).replace(/[&<>"']/g, (char) => {
       const map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" };
       return map[char];
     });
+
+  const formatDateTime = (value) => (value ? new Date(value).toLocaleString("zh-CN") : "暂无记录");
+
+  const statusLabels = {
+    visible: "公开",
+    hidden: "隐藏",
+    deleted: "已删除",
+    pending: "待处理",
+  };
+
+  const getSafeAvatar = (value) => {
+    if (!value) return "";
+    try {
+      const url = new URL(value);
+      if (!["http:", "https:"].includes(url.protocol)) return "";
+      return escapeHTML(url.href);
+    } catch {
+      return "";
+    }
+  };
+
+  const getInitial = (value) => {
+    const trimmed = String(value || "匿名").trim();
+    return escapeHTML(trimmed.slice(0, 1).toUpperCase() || "匿");
+  };
 
   const requestAdminFunction = async (path, options = {}) => {
     if (!adminFunctionUrl) throw new Error("PUBLIC_SUPABASE_ADMIN_FUNCTION_URL 尚未配置。");
@@ -360,11 +785,117 @@ const postItems = posts.map((post) => ({
     return payload;
   };
 
-  const parseTags = (value) =>
+  const slugify = (value) =>
     value
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter(Boolean);
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
+
+  const generateSlug = () => {
+    const base =
+      slugify(articleForm.title.value) || `post-${articleForm.pubDate.value || Date.now()}`;
+    let slug = base;
+    let index = 2;
+    while (posts.some((post) => post.slug === slug && post.slug !== currentArticleSlug)) {
+      slug = `${base}-${index}`;
+      index += 1;
+    }
+    articleForm.slug.value = slug;
+    updateSlugHelp();
+  };
+
+  const validateSlug = () => {
+    const slug = slugify(articleForm.slug.value);
+    articleForm.slug.value = slug;
+
+    if (!slug) return "Slug 不能为空。";
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+      return "Slug 只能使用小写英文、数字和单个短横线。";
+    }
+    if (reservedSlugs.has(slug)) return `“${slug}” 是保留字段，不能作为文章 Slug。`;
+    if (posts.some((post) => post.slug === slug && post.slug !== currentArticleSlug)) {
+      return `“${slug}” 已经被其他文章使用。`;
+    }
+    return "";
+  };
+
+  const updateSlugHelp = () => {
+    const error = validateSlug();
+    if (slugHelp) {
+      slugHelp.textContent =
+        error ||
+        "Slug 可用。只能使用小写英文、数字和短横线；不能重复，也不能使用 admin、api 等保留字段。";
+      slugHelp.dataset.state = error ? "error" : "ok";
+    }
+    return error;
+  };
+
+  const parseTags = (value) => {
+    const tags = [
+      ...new Set(
+        value
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+      ),
+    ];
+
+    if (tags.length > 10) throw new Error("标签最多填写 10 个。");
+    tags.forEach((tag) => {
+      if (tag.length > 24) throw new Error(`标签“${tag}”太长，最多 24 个字符。`);
+      if (!/^[\p{Script=Han}A-Za-z0-9 _-]+$/u.test(tag)) {
+        throw new Error(
+          `标签“${tag}”包含不支持的字符。请使用中文、英文、数字、空格、短横线或下划线。`,
+        );
+      }
+    });
+    return tags;
+  };
+
+  const fileToBase64 = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.addEventListener("load", () => {
+        resolve(String(reader.result).replace(/^data:[^;]+;base64,/, ""));
+      });
+      reader.addEventListener("error", () => reject(reader.error));
+      reader.readAsDataURL(file);
+    });
+
+  const getHeroImageUpload = async () => {
+    const file = articleForm.heroFile.files?.[0];
+    if (!file) return undefined;
+    if (!file.type.startsWith("image/")) throw new Error("封面图只能上传图片文件。");
+    if (file.size > 3 * 1024 * 1024) throw new Error("封面图不能超过 3MB。");
+    return {
+      name: file.name,
+      contentBase64: await fileToBase64(file),
+    };
+  };
+
+  const setArticleMode = (mode) => {
+    articleModeButtons.forEach((button) => {
+      if (button.dataset.articleMode === mode) {
+        button.setAttribute("aria-current", "true");
+      } else {
+        button.removeAttribute("aria-current");
+      }
+    });
+
+    articleSections.forEach((section) => {
+      section.hidden = section.dataset.articleSection !== mode;
+    });
+  };
+
+  const placeArticleForm = (context) => {
+    articleEditorContext = context;
+    const target = context === "existing" ? existingArticleEditor : newArticleEditor;
+    target?.append(articleForm);
+    if (existingArticleEditor) existingArticleEditor.hidden = context !== "existing";
+    articleForm.hidden = false;
+  };
 
   const setArticleForm = (article = {}) => {
     currentArticleSlug = article.slug ?? "";
@@ -376,8 +907,10 @@ const postItems = posts.map((post) => ({
     articleForm.tags.value = (article.tags ?? []).join(", ");
     articleForm.featured.checked = Boolean(article.featured);
     articleForm.heroImage.value = article.heroImage ?? "";
+    articleForm.heroFile.value = "";
     articleForm.body.value = article.body ?? "";
     articleDelete.hidden = !currentArticleSlug;
+    validateSlug();
   };
 
   const renderArticles = () => {
@@ -385,7 +918,7 @@ const postItems = posts.map((post) => ({
     articleList.innerHTML = posts
       .map(
         (post) => `
-          <article class="admin-item">
+          <article class="admin-item article-list-item">
             <h3>${escapeHTML(post.title)}</h3>
             <p>${escapeHTML(post.slug)} · ${escapeHTML(post.pubDate)}</p>
             <div class="admin-item-actions">
@@ -401,6 +934,9 @@ const postItems = posts.map((post) => ({
         const slug = button.dataset.editArticle;
         const post = posts.find((item) => item.slug === slug);
         setArticleForm(post);
+        placeArticleForm("existing");
+        setArticleMode("existing");
+        existingArticleEditor?.scrollIntoView({ behavior: "smooth", block: "start" });
         message(articleStatus, "正在读取文章正文...");
         try {
           const payload = await requestAdminFunction(`?slug=${encodeURIComponent(slug)}`);
@@ -413,69 +949,216 @@ const postItems = posts.map((post) => ({
     });
   };
 
-  const renderComments = async () => {
-    if (!commentsList || !supabase) return;
-    const { data, error } = await supabase
-      .from("comments")
-      .select("id, post_slug, author_name, content, status, created_at")
-      .order("created_at", { ascending: false })
-      .limit(100);
+  const renderCommentSummary = () => {
+    if (!commentsSummary) return;
+    const counts = commentItems.reduce(
+      (result, comment) => {
+        result.all += 1;
+        result[comment.status] = (result[comment.status] ?? 0) + 1;
+        return result;
+      },
+      { all: 0, visible: 0, hidden: 0, deleted: 0 },
+    );
 
-    if (error) {
-      commentsList.innerHTML = `<p>${escapeHTML(error.message)}</p>`;
-      return;
-    }
-
-    commentsList.innerHTML = (data ?? [])
+    commentsSummary.innerHTML = [
+      ["全部", counts.all],
+      ["公开", counts.visible],
+      ["隐藏", counts.hidden],
+      ["已删除", counts.deleted],
+    ]
       .map(
-        (comment) => `
-          <article class="admin-item">
-            <h3>${escapeHTML(comment.author_name)} · ${escapeHTML(comment.status)}</h3>
-            <p>${escapeHTML(comment.post_slug)} · ${new Date(comment.created_at).toLocaleString("zh-CN")}</p>
-            <p>${escapeHTML(comment.content)}</p>
-            <div class="admin-item-actions">
-              <button class="button secondary" type="button" data-comment-status="visible" data-comment-id="${comment.id}">公开</button>
-              <button class="button secondary" type="button" data-comment-status="hidden" data-comment-id="${comment.id}">隐藏</button>
-              <button class="button danger" type="button" data-comment-status="deleted" data-comment-id="${comment.id}">删除</button>
-            </div>
-          </article>
+        ([label, value]) => `
+          <div class="admin-metric">
+            <strong>${value}</strong>
+            <span>${label}</span>
+          </div>
         `,
       )
       .join("");
+  };
+
+  const getFilteredComments = () => {
+    const status = commentFilter?.value ?? "all";
+    const sort = commentSort?.value ?? "newest";
+    const query = (commentSearch?.value ?? "").trim().toLowerCase();
+
+    return commentItems
+      .filter((comment) => {
+        if (status !== "all" && comment.status !== status) return false;
+        if (!query) return true;
+        return [comment.author_name, comment.content, comment.post_slug]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(query));
+      })
+      .sort((a, b) => {
+        const left = new Date(a.created_at).getTime();
+        const right = new Date(b.created_at).getTime();
+        return sort === "oldest" ? left - right : right - left;
+      });
+  };
+
+  const renderCommentList = () => {
+    if (!commentsList) return;
+    renderCommentSummary();
+    const comments = getFilteredComments();
+
+    if (!comments.length) {
+      commentsList.innerHTML = `<p class="admin-note">当前条件下没有评论。</p>`;
+      return;
+    }
+
+    commentsList.innerHTML = comments
+      .map((comment) => {
+        const avatar = getSafeAvatar(comment.author_avatar);
+        const statusLabel = statusLabels[comment.status] ?? comment.status;
+        const actionButtons = [
+          comment.status !== "visible"
+            ? `<button class="button secondary" type="button" data-comment-status="visible" data-comment-id="${comment.id}">公开</button>`
+            : "",
+          comment.status !== "hidden"
+            ? `<button class="button secondary" type="button" data-comment-status="hidden" data-comment-id="${comment.id}">隐藏</button>`
+            : "",
+          comment.status !== "deleted"
+            ? `<button class="button danger" type="button" data-comment-status="deleted" data-comment-id="${comment.id}">删除</button>`
+            : "",
+        ].join("");
+
+        return `
+          <article class="admin-item comment-admin-item">
+            <div class="comment-admin-head">
+              <div class="comment-admin-author">
+                ${
+                  avatar
+                    ? `<img src="${avatar}" alt="" />`
+                    : `<span class="comment-admin-avatar" aria-hidden="true">${getInitial(comment.author_name)}</span>`
+                }
+                <div>
+                  <h3>${escapeHTML(comment.author_name || "匿名用户")}</h3>
+                  <div class="comment-admin-meta">
+                    ${escapeHTML(comment.post_slug)} · ${formatDateTime(comment.created_at)}
+                  </div>
+                </div>
+              </div>
+              <span class="status-badge ${escapeHTML(comment.status)}">${escapeHTML(statusLabel)}</span>
+            </div>
+            <p class="comment-admin-body">${escapeHTML(comment.content)}</p>
+            <div class="admin-item-actions">
+              ${actionButtons}
+            </div>
+          </article>
+        `;
+      })
+      .join("");
 
     commentsList.querySelectorAll("[data-comment-id]").forEach((button) => {
-      button.addEventListener("click", async () => {
-        await supabase
-          .from("comments")
-          .update({ status: button.dataset.commentStatus })
-          .eq("id", button.dataset.commentId);
-        await renderComments();
+      button.addEventListener("click", () => {
+        updateCommentStatus(button.dataset.commentId, button.dataset.commentStatus, button);
       });
     });
   };
 
-  const renderStats = async () => {
-    if (!statsList || !supabase) return;
-    const { data, error } = await supabase
-      .from("post_view_counts")
-      .select("post_slug, total_views, views_7d, views_30d, last_viewed_at")
-      .order("total_views", { ascending: false });
+  const updateCommentStatus = async (commentId, nextStatus, button) => {
+    if (!commentId || !nextStatus || !supabase) return;
+    const comment = commentItems.find((item) => item.id === commentId);
+    if (nextStatus === "deleted" && comment?.status !== "deleted") {
+      const confirmed = confirm("确定把这条评论标记为已删除吗？它不会再显示在文章页。");
+      if (!confirmed) return;
+    }
+
+    button.disabled = true;
+    message(commentsStatus, "正在更新评论...");
+    const { error } = await supabase
+      .from("comments")
+      .update({ status: nextStatus })
+      .eq("id", commentId);
 
     if (error) {
-      statsList.innerHTML = `<p>${escapeHTML(error.message)}</p>`;
+      message(commentsStatus, error.message);
+      button.disabled = false;
       return;
     }
 
-    statsList.innerHTML = (data ?? [])
+    message(commentsStatus, "评论状态已更新。");
+    await renderComments();
+  };
+
+  const renderComments = async () => {
+    if (!commentsList || !supabase) return;
+    message(commentsStatus, "正在读取评论...");
+    const { data, error } = await supabase
+      .from("comments")
+      .select(
+        "id, post_slug, user_id, author_name, author_avatar, content, status, created_at, updated_at",
+      )
+      .order("created_at", { ascending: false })
+      .limit(300);
+
+    if (error) {
+      commentsList.innerHTML = `<p>${escapeHTML(error.message)}</p>`;
+      message(commentsStatus, "评论读取失败。");
+      return;
+    }
+
+    commentItems = data ?? [];
+    message(commentsStatus, commentItems.length ? "" : "还没有评论。");
+    renderCommentList();
+  };
+
+  const renderStats = async () => {
+    if (!statsList || !supabase) return;
+    const [{ data: viewData, error: viewError }, { data: likeData, error: likeError }] =
+      await Promise.all([
+        supabase
+          .from("post_view_counts")
+          .select("post_slug, total_views, views_7d, views_30d, last_viewed_at")
+          .order("total_views", { ascending: false }),
+        supabase.from("post_like_counts").select("post_slug, total_likes, last_liked_at"),
+      ]);
+
+    if (viewError) {
+      statsList.innerHTML = `<p>${escapeHTML(viewError.message)}</p>`;
+      return;
+    }
+
+    const viewMap = new Map((viewData ?? []).map((row) => [row.post_slug, row]));
+    const likeMap = new Map((likeData ?? []).map((row) => [row.post_slug, row]));
+    const slugs = [
+      ...new Set([...posts.map((post) => post.slug), ...viewMap.keys(), ...likeMap.keys()]),
+    ];
+    const rows = slugs
+      .map((slug) => ({
+        slug,
+        title: posts.find((post) => post.slug === slug)?.title ?? slug,
+        views: viewMap.get(slug),
+        likes: likeMap.get(slug),
+      }))
+      .sort((a, b) => {
+        const viewDiff = Number(b.views?.total_views ?? 0) - Number(a.views?.total_views ?? 0);
+        if (viewDiff) return viewDiff;
+        return Number(b.likes?.total_likes ?? 0) - Number(a.likes?.total_likes ?? 0);
+      });
+
+    statsList.innerHTML = rows
       .map(
         (row) => `
           <article class="admin-item">
-            <h3>${escapeHTML(row.post_slug)}</h3>
-            <p>总浏览 ${row.total_views} · 7 天 ${row.views_7d} · 30 天 ${row.views_30d}</p>
+            <h3>${escapeHTML(row.title)}</h3>
+            <p>${escapeHTML(row.slug)}</p>
+            <p>
+              总浏览 ${row.views?.total_views ?? 0} · 7 天 ${row.views?.views_7d ?? 0}
+              · 30 天 ${row.views?.views_30d ?? 0} · 点赞 ${row.likes?.total_likes ?? 0}
+            </p>
           </article>
         `,
       )
       .join("");
+
+    if (likeError) {
+      statsList.insertAdjacentHTML(
+        "afterbegin",
+        `<p class="admin-note">点赞统计尚未可用：${escapeHTML(likeError.message)}</p>`,
+      );
+    }
   };
 
   const loadProfile = async () => {
@@ -530,6 +1213,7 @@ const postItems = posts.map((post) => ({
     if (!user) {
       message(statusNode, "请登录后进入后台。");
       locked.hidden = false;
+      consoleNode.hidden = true;
       return;
     }
 
@@ -542,8 +1226,9 @@ const postItems = posts.map((post) => ({
     isAdmin = profile?.role === "admin";
 
     if (!isAdmin) {
-      message(statusNode, `${getUserLabel(user)} 已登录，但没有后台权限。`);
+      message(statusNode, `${getUserLabel(user)} 已登录，但权限不足，不能进入后台。`);
       locked.hidden = false;
+      consoleNode.hidden = true;
       return;
     }
 
@@ -578,25 +1263,55 @@ const postItems = posts.map((post) => ({
     });
   });
 
+  commentFilter?.addEventListener("change", renderCommentList);
+  commentSort?.addEventListener("change", renderCommentList);
+  commentSearch?.addEventListener("input", renderCommentList);
+
+  articleModeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const mode = button.dataset.articleMode;
+      if (mode === "new") {
+        placeArticleForm("new");
+        setArticleForm();
+        message(articleStatus, "");
+      }
+      setArticleMode(mode);
+    });
+  });
+
+  root?.querySelector("[data-generate-slug]")?.addEventListener("click", generateSlug);
+  articleForm?.slug.addEventListener("input", updateSlugHelp);
+  articleForm?.title.addEventListener("blur", () => {
+    if (!currentArticleSlug && !articleForm.slug.value.trim()) generateSlug();
+  });
+
   articleForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     message(articleStatus, "正在保存文章...");
-    const payload = {
-      slug: articleForm.slug.value,
-      title: articleForm.title.value,
-      description: articleForm.description.value,
-      pubDate: articleForm.pubDate.value,
-      tags: parseTags(articleForm.tags.value),
-      featured: articleForm.featured.checked,
-      heroImage: articleForm.heroImage.value,
-      body: articleForm.body.value,
-    };
-
     try {
-      await requestAdminFunction("", {
+      const slugError = updateSlugHelp();
+      if (slugError) throw new Error(slugError);
+
+      const heroImageUpload = await getHeroImageUpload();
+      const payload = {
+        slug: articleForm.slug.value,
+        originalSlug: currentArticleSlug,
+        title: articleForm.title.value,
+        description: articleForm.description.value,
+        pubDate: articleForm.pubDate.value,
+        tags: parseTags(articleForm.tags.value),
+        featured: articleForm.featured.checked,
+        heroImage: articleForm.heroImage.value,
+        heroImageUpload,
+        body: articleForm.body.value,
+      };
+
+      const result = await requestAdminFunction("", {
         method: currentArticleSlug ? "PUT" : "POST",
         body: JSON.stringify(payload),
       });
+      if (result.heroImage) articleForm.heroImage.value = result.heroImage;
+      articleForm.heroFile.value = "";
       message(articleStatus, "已保存。GitHub Pages 会自动重新部署。");
     } catch (error) {
       message(articleStatus, error.message);
@@ -605,6 +1320,10 @@ const postItems = posts.map((post) => ({
 
   root?.querySelector("[data-article-reset]")?.addEventListener("click", () => {
     setArticleForm();
+    if (articleEditorContext === "existing") {
+      articleForm.hidden = true;
+      if (existingArticleEditor) existingArticleEditor.hidden = true;
+    }
     message(articleStatus, "");
   });
 
@@ -663,5 +1382,7 @@ const postItems = posts.map((post) => ({
   });
 
   setArticleForm();
+  setArticleMode("existing");
+  renderArticles();
   await initializeAdmin();
 </script>

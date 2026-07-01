@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "./BaseLayout.astro";
+import PostLikeButton from "../components/PostLikeButton.astro";
 import SupabaseComments from "../components/SupabaseComments.astro";
 import TagList from "../components/TagList.astro";
 import ViewCounter from "../components/ViewCounter.astro";
@@ -75,6 +76,7 @@ const articleJsonLd = {
       <div class="post-meta-row">
         {updatedDate && <p class="updated">更新于 {formatDate(updatedDate)}</p>}
         <ViewCounter postSlug={postSlug} />
+        <PostLikeButton postSlug={postSlug} />
       </div>
       <TagList tags={tags} />
     </header>

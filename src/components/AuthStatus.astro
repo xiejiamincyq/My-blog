@@ -3,6 +3,7 @@
   <div class="auth-user" data-auth-user hidden>
     <img data-auth-avatar alt="" />
     <span data-auth-name></span>
+    <a class="auth-button ghost" href="#" data-auth-profile>个人信息</a>
     <button class="auth-button ghost" type="button" data-auth-logout>退出</button>
   </div>
 </div>
@@ -60,31 +61,25 @@
   const root = document.querySelector("[data-auth-status]");
   const loginButton = root?.querySelector("[data-auth-login]");
   const logoutButton = root?.querySelector("[data-auth-logout]");
+  const profileLink = root?.querySelector("[data-auth-profile]");
   const userBox = root?.querySelector("[data-auth-user]");
   const nameNode = root?.querySelector("[data-auth-name]");
   const avatarNode = root?.querySelector("[data-auth-avatar]");
   const supabase = await getSupabaseClient();
-  const adminRedirectKey = "blog_admin_redirect_after_login";
   const basePath = import.meta.env.BASE_URL.endsWith("/")
     ? import.meta.env.BASE_URL
     : `${import.meta.env.BASE_URL}/`;
-  const adminUrl = new URL(`${basePath}admin/`, window.location.origin).href;
+  const profileUrl = new URL(`${basePath}profile/`, window.location.origin).href;
 
-  const maybeRedirectAdmin = async (user) => {
-    if (!user || window.location.href === adminUrl) return;
-    if (sessionStorage.getItem(adminRedirectKey) !== "true") return;
-
-    const { data: profile } = await supabase
+  const getProfileLabel = async (user) => {
+    const fallback = getUserLabel(user);
+    const { data } = await supabase
       .from("profiles")
-      .select("role")
+      .select("display_name")
       .eq("id", user.id)
       .maybeSingle();
 
-    sessionStorage.removeItem(adminRedirectKey);
-
-    if (profile?.role === "admin") {
-      window.location.assign(adminUrl);
-    }
+    return data?.display_name || fallback;
   };
 
   const render = async () => {
@@ -101,15 +96,14 @@
     userBox.hidden = !user;
 
     if (user) {
-      nameNode.textContent = getUserLabel(user);
+      if (profileLink) profileLink.href = profileUrl;
+      nameNode.textContent = await getProfileLabel(user);
       avatarNode.src = user.user_metadata?.avatar_url ?? "";
       avatarNode.hidden = !avatarNode.src;
-      await maybeRedirectAdmin(user);
     }
   };
 
   loginButton?.addEventListener("click", async () => {
-    sessionStorage.setItem(adminRedirectKey, "true");
     await supabase?.auth.signInWithOAuth({
       provider: "github",
       options: { redirectTo: window.location.href },
@@ -126,6 +120,8 @@
     render();
     window.dispatchEvent(new CustomEvent("blog-auth-change"));
   });
+
+  window.addEventListener("blog-auth-change", render);
 
   render();
 </script>

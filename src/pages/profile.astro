@@ -1,0 +1,312 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { sitePath } from "../lib/paths";
+---
+
+<BaseLayout title="查看个人信息" description="查看你的登录信息、个人资料和互动记录。">
+  <section class="profile-shell" data-profile-root>
+    <header class="profile-hero">
+      <div>
+        <p class="eyebrow">Profile</p>
+        <h1>查看个人信息</h1>
+        <p>查看登录信息、昵称、个性签名，以及你在站内留下的评论和点赞记录。</p>
+      </div>
+      <div class="profile-auth-card">
+        <p data-profile-status>正在检查登录状态...</p>
+        <button class="button primary" type="button" data-profile-login hidden
+          >使用 GitHub 登录</button
+        >
+        <button class="button secondary" type="button" data-profile-logout hidden>退出登录</button>
+      </div>
+    </header>
+
+    <div class="profile-locked" data-profile-locked hidden>
+      <h2>请先登录</h2>
+      <p>登录后可以查看自己的个人信息和互动记录。</p>
+    </div>
+
+    <div class="profile-dashboard" data-profile-dashboard hidden>
+      <section class="profile-panel">
+        <div class="profile-panel-heading">
+          <h2>登录信息</h2>
+        </div>
+        <dl class="profile-details">
+          <div>
+            <dt>登录方式</dt>
+            <dd data-login-provider>...</dd>
+          </div>
+          <div>
+            <dt>登录账号</dt>
+            <dd data-login-account>...</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="profile-panel">
+        <div class="profile-panel-heading with-action">
+          <h2>个人资料</h2>
+          <a class="button primary" href={sitePath("profile/edit/")}>修改个人信息</a>
+        </div>
+        <dl class="profile-details">
+          <div>
+            <dt>昵称</dt>
+            <dd data-profile-name>...</dd>
+          </div>
+          <div>
+            <dt>个性签名</dt>
+            <dd data-profile-signature>...</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="profile-panel">
+        <div class="profile-panel-heading">
+          <h2>评论记录</h2>
+        </div>
+        <div class="profile-list" data-comment-list></div>
+      </section>
+
+      <section class="profile-panel">
+        <div class="profile-panel-heading">
+          <h2>点赞记录</h2>
+        </div>
+        <div class="profile-empty">点赞功能尚未开启，暂时没有点赞记录。</div>
+      </section>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .profile-shell {
+    padding: 44px 0 72px;
+  }
+
+  .profile-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 24px;
+    align-items: end;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 30px;
+  }
+
+  .profile-hero h1 {
+    font-size: clamp(42px, 7vw, 72px);
+  }
+
+  .profile-auth-card,
+  .profile-locked,
+  .profile-panel {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    padding: 18px;
+    backdrop-filter: blur(16px);
+  }
+
+  .profile-locked,
+  .profile-dashboard {
+    margin-top: 24px;
+  }
+
+  .profile-dashboard {
+    display: grid;
+    gap: 16px;
+  }
+
+  .profile-panel-heading {
+    margin-bottom: 14px;
+  }
+
+  .profile-panel-heading.with-action {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .profile-panel-heading h2,
+  .profile-panel-heading p {
+    margin: 0;
+  }
+
+  .profile-details {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+  }
+
+  .profile-details div {
+    display: grid;
+    gap: 4px;
+  }
+
+  .profile-details dt {
+    color: var(--muted);
+    font-weight: 800;
+  }
+
+  .profile-details dd {
+    margin: 0;
+  }
+
+  .profile-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .profile-item,
+  .profile-empty {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 12px;
+  }
+
+  .profile-item h3,
+  .profile-item p {
+    margin: 0;
+  }
+
+  .profile-item p,
+  .profile-empty {
+    color: var(--muted);
+  }
+
+  @media (max-width: 860px) {
+    .profile-hero {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  // @ts-nocheck
+  import { getSupabaseClient, getUserLabel } from "../lib/supabase-browser";
+
+  const root = document.querySelector("[data-profile-root]");
+  const supabase = await getSupabaseClient();
+
+  const statusNode = root?.querySelector("[data-profile-status]");
+  const loginButton = root?.querySelector("[data-profile-login]");
+  const logoutButton = root?.querySelector("[data-profile-logout]");
+  const locked = root?.querySelector("[data-profile-locked]");
+  const dashboard = root?.querySelector("[data-profile-dashboard]");
+  const providerNode = root?.querySelector("[data-login-provider]");
+  const accountNode = root?.querySelector("[data-login-account]");
+  const nameNode = root?.querySelector("[data-profile-name]");
+  const signatureNode = root?.querySelector("[data-profile-signature]");
+  const commentList = root?.querySelector("[data-comment-list]");
+
+  const message = (node, value) => {
+    if (node) node.textContent = value;
+  };
+
+  const escapeHTML = (value = "") =>
+    value.replace(/[&<>"']/g, (char) => {
+      const map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" };
+      return map[char];
+    });
+
+  const formatDate = (value) =>
+    new Intl.DateTimeFormat("zh-CN", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(value));
+
+  const getProviderLabel = (provider) => {
+    const labels = { github: "GitHub" };
+    return labels[provider] ?? provider ?? "未知";
+  };
+
+  const loadProfile = async (user) => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("email, display_name, signature")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const provider = user.app_metadata?.provider;
+    message(providerNode, getProviderLabel(provider));
+    message(accountNode, data?.email ?? user.email ?? user.user_metadata?.user_name ?? "未提供");
+    message(nameNode, data?.display_name ?? getUserLabel(user));
+    message(signatureNode, data?.signature || "还没有填写个性签名。");
+  };
+
+  const loadComments = async (user) => {
+    if (!commentList) return;
+
+    const { data, error } = await supabase
+      .from("comments")
+      .select("id, post_slug, content, status, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (error) {
+      commentList.innerHTML = `<div class="profile-empty">${escapeHTML(error.message)}</div>`;
+      return;
+    }
+
+    if (!data?.length) {
+      commentList.innerHTML = `<div class="profile-empty">还没有评论记录。</div>`;
+      return;
+    }
+
+    commentList.innerHTML = data
+      .map(
+        (comment) => `
+          <article class="profile-item">
+            <h3><a href="${import.meta.env.BASE_URL}blog/${encodeURIComponent(comment.post_slug)}/">${escapeHTML(comment.post_slug)}</a></h3>
+            <p>${formatDate(comment.created_at)} · ${escapeHTML(comment.status)}</p>
+            <p>${escapeHTML(comment.content)}</p>
+          </article>
+        `,
+      )
+      .join("");
+  };
+
+  const initializeProfile = async () => {
+    if (!supabase) {
+      message(
+        statusNode,
+        "Supabase 尚未配置。请先填写 PUBLIC_SUPABASE_URL 和 PUBLIC_SUPABASE_ANON_KEY。",
+      );
+      return;
+    }
+
+    const { data } = await supabase.auth.getSession();
+    const user = data.session?.user;
+
+    loginButton.hidden = Boolean(user);
+    logoutButton.hidden = !user;
+    locked.hidden = Boolean(user);
+    dashboard.hidden = !user;
+
+    if (!user) {
+      message(statusNode, "请登录后查看个人信息。");
+      return;
+    }
+
+    await Promise.all([loadProfile(user), loadComments(user)]);
+    message(statusNode, `${getUserLabel(user)}，这是你的个人信息。`);
+  };
+
+  loginButton?.addEventListener("click", async () => {
+    await supabase?.auth.signInWithOAuth({
+      provider: "github",
+      options: { redirectTo: window.location.href },
+    });
+  });
+
+  logoutButton?.addEventListener("click", async () => {
+    await supabase?.auth.signOut();
+    window.location.reload();
+  });
+
+  await initializeProfile();
+</script>

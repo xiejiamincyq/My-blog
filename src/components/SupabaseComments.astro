@@ -10,20 +10,27 @@ const { postSlug } = Astro.props;
   <div class="comments-heading">
     <div>
       <p class="eyebrow">Comments</p>
-      <h2>评论</h2>
+      <h2>评论 <span data-comment-count>0</span></h2>
     </div>
     <button class="auth-button" type="button" data-comments-login>登录后评论</button>
   </div>
 
   <form class="comment-form" data-comment-form hidden>
     <label for="comment-content">写下你的想法</label>
-    <textarea id="comment-content" name="content" rows="4" maxlength="2000" required></textarea>
+    <textarea
+      id="comment-content"
+      name="content"
+      rows="4"
+      maxlength="2000"
+      placeholder="自由写，直接发。"
+      required></textarea>
     <div class="comment-form-actions">
-      <span data-comment-status></span>
-      <button class="button primary" type="submit">发布评论</button>
+      <span data-comment-status aria-live="polite"></span>
+      <button class="button primary" type="submit" data-comment-submit>发布评论</button>
     </div>
   </form>
 
+  <p class="comments-empty" data-comments-loading>正在加载评论...</p>
   <div class="comment-list" data-comment-list></div>
   <p class="comments-empty" data-comments-empty hidden>还没有评论，来写第一条吧。</p>
   <p class="comments-empty" data-comments-unavailable hidden>
@@ -48,6 +55,11 @@ const { postSlug } = Astro.props;
 
   .comments-heading h2 {
     font-size: 28px;
+  }
+
+  .comments-heading h2 span {
+    color: var(--muted);
+    font-size: 18px;
   }
 
   .comment-form {
@@ -76,6 +88,11 @@ const { postSlug } = Astro.props;
     color: var(--text);
     font: inherit;
     padding: 12px;
+  }
+
+  .comment-form textarea:focus {
+    border-color: rgba(71, 233, 255, 0.45);
+    outline: none;
   }
 
   .comment-form-actions {
@@ -108,7 +125,21 @@ const { postSlug } = Astro.props;
     font-size: 14px;
   }
 
+  .comment-avatar-fallback {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    background: rgba(71, 233, 255, 0.16);
+    color: var(--accent-strong);
+    font-size: 13px;
+    font-weight: 900;
+  }
+
   .comment-meta img {
+    flex: 0 0 auto;
     width: 28px;
     height: 28px;
     border-radius: 999px;
@@ -117,10 +148,19 @@ const { postSlug } = Astro.props;
 
   .comment-body {
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
 
   .comments-empty {
     color: var(--muted);
+  }
+
+  @media (max-width: 620px) {
+    .comments-heading,
+    .comment-form-actions {
+      align-items: flex-start;
+      flex-direction: column;
+    }
   }
 </style>
 
@@ -133,17 +173,36 @@ const { postSlug } = Astro.props;
   const postSlug = root?.dataset.postSlug;
   const list = root?.querySelector("[data-comment-list]");
   const empty = root?.querySelector("[data-comments-empty]");
+  const loading = root?.querySelector("[data-comments-loading]");
   const unavailable = root?.querySelector("[data-comments-unavailable]");
+  const countNode = root?.querySelector("[data-comment-count]");
   const loginButton = root?.querySelector("[data-comments-login]");
   const form = root?.querySelector("[data-comment-form]");
   const textarea = form?.querySelector("textarea");
   const status = root?.querySelector("[data-comment-status]");
+  const submitButton = root?.querySelector("[data-comment-submit]");
 
-  const escapeHTML = (value) =>
-    value.replace(/[&<>"']/g, (char) => {
+  const escapeHTML = (value = "") =>
+    String(value).replace(/[&<>"']/g, (char) => {
       const map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" };
       return map[char];
     });
+
+  const getSafeAvatar = (value) => {
+    if (!value) return "";
+    try {
+      const url = new URL(value);
+      if (!["http:", "https:"].includes(url.protocol)) return "";
+      return escapeHTML(url.href);
+    } catch {
+      return "";
+    }
+  };
+
+  const getInitial = (value) => {
+    const trimmed = String(value || "匿名").trim();
+    return escapeHTML(trimmed.slice(0, 1).toUpperCase() || "匿");
+  };
 
   const formatDate = (value) =>
     new Intl.DateTimeFormat("zh-CN", {
@@ -158,16 +217,21 @@ const { postSlug } = Astro.props;
     if (!supabase) return;
     const { data } = await supabase.auth.getUser();
     const user = data.user;
-    loginButton.hidden = Boolean(user);
-    form.hidden = !user;
+    if (loginButton) loginButton.hidden = Boolean(user);
+    if (form) form.hidden = !user;
   };
 
   const loadComments = async () => {
     if (!root || !postSlug || !list) return;
+    if (loading) loading.hidden = false;
+    if (empty) empty.hidden = true;
+    if (unavailable) unavailable.hidden = true;
 
     if (!supabase) {
-      unavailable.hidden = false;
-      loginButton.hidden = true;
+      if (loading) loading.hidden = true;
+      if (unavailable) unavailable.hidden = false;
+      if (loginButton) loginButton.hidden = true;
+      if (countNode) countNode.textContent = "0";
       return;
     }
 
@@ -178,27 +242,50 @@ const { postSlug } = Astro.props;
       .eq("status", "visible")
       .order("created_at", { ascending: true });
 
+    if (loading) loading.hidden = true;
+
     if (error) {
-      unavailable.hidden = false;
+      if (unavailable) unavailable.hidden = false;
       return;
     }
 
-    list.innerHTML = (data ?? [])
-      .map(
-        (comment) => `
+    const comments = data ?? [];
+    if (countNode) countNode.textContent = String(comments.length);
+    list.innerHTML = comments
+      .map((comment) => {
+        const avatar = getSafeAvatar(comment.author_avatar);
+        const authorName = escapeHTML(comment.author_name || "匿名用户");
+        return `
           <article class="comment-card">
             <div class="comment-meta">
-              ${comment.author_avatar ? `<img src="${comment.author_avatar}" alt="" />` : ""}
-              <strong>${escapeHTML(comment.author_name)}</strong>
+              ${
+                avatar
+                  ? `<img src="${avatar}" alt="" />`
+                  : `<span class="comment-avatar-fallback" aria-hidden="true">${getInitial(comment.author_name)}</span>`
+              }
+              <strong>${authorName}</strong>
               <span>${formatDate(comment.created_at)}</span>
             </div>
             <div class="comment-body">${escapeHTML(comment.content)}</div>
           </article>
-        `,
-      )
+        `;
+      })
       .join("");
 
-    empty.hidden = Boolean(data?.length);
+    if (empty) empty.hidden = Boolean(comments.length);
+  };
+
+  const getCommentAuthor = async (user) => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("display_name, avatar_url")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    return {
+      name: data?.display_name || getUserLabel(user),
+      avatar: data?.avatar_url || user.user_metadata?.avatar_url || null,
+    };
   };
 
   loginButton?.addEventListener("click", async () => {
@@ -210,37 +297,45 @@ const { postSlug } = Astro.props;
 
   form?.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (!supabase || !textarea || !submitButton) return;
     status.textContent = "发布中...";
+    submitButton.disabled = true;
 
-    const { data } = await supabase.auth.getUser();
-    const user = data.user;
-    if (!user) {
-      status.textContent = "请先登录。";
-      return;
+    try {
+      const { data } = await supabase.auth.getUser();
+      const user = data.user;
+      if (!user) {
+        status.textContent = "请先登录。";
+        return;
+      }
+
+      const content = textarea.value.trim();
+      if (!content) {
+        status.textContent = "评论不能为空。";
+        return;
+      }
+
+      const author = await getCommentAuthor(user);
+      const { error } = await supabase.from("comments").insert({
+        post_slug: postSlug,
+        user_id: user.id,
+        author_name: author.name,
+        author_avatar: author.avatar,
+        content,
+        status: "visible",
+      });
+
+      if (error) {
+        status.textContent = "发布失败，请稍后重试。";
+        return;
+      }
+
+      textarea.value = "";
+      status.textContent = "已发布。";
+      await loadComments();
+    } finally {
+      submitButton.disabled = false;
     }
-
-    const content = textarea.value.trim();
-    if (!content) {
-      status.textContent = "评论不能为空。";
-      return;
-    }
-
-    const { error } = await supabase.from("comments").insert({
-      post_slug: postSlug,
-      user_id: user.id,
-      author_name: getUserLabel(user),
-      author_avatar: user.user_metadata?.avatar_url,
-      content,
-    });
-
-    if (error) {
-      status.textContent = "发布失败，请稍后重试。";
-      return;
-    }
-
-    textarea.value = "";
-    status.textContent = "已发布。";
-    await loadComments();
   });
 
   window.addEventListener("blog-auth-change", renderAuth);

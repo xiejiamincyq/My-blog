@@ -25,7 +25,7 @@ GITHUB_REPO=My-blog
 ## Setup order
 
 1. Create a Supabase project.
-2. Run `supabase/migrations/001_blog_admin.sql`.
+2. Run the SQL files in `supabase/migrations/` in order.
 3. Enable GitHub auth in Supabase Auth providers.
 4. Sign in once on the blog, then set your own profile row to `role = 'admin'`:
    ```sql
@@ -37,4 +37,5 @@ GITHUB_REPO=My-blog
 6. Deploy the `admin-github` Edge Function with JWT verification enabled.
 7. Add the public Supabase environment variables to GitHub Pages build settings or local `.env`.
 
-The blog remains fully public. Only commenting and `/admin` require login.
+The blog remains fully public. Only commenting and `/admin` require login. Post likes are public
+and can be added by logged-in users or by one anonymous browser identity per post.

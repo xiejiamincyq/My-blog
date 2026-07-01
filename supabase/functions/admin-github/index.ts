@@ -3,12 +3,17 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 type ArticlePayload = {
   slug?: string;
+  originalSlug?: string;
   title?: string;
   description?: string;
   pubDate?: string;
   tags?: string[];
   featured?: boolean;
   heroImage?: string;
+  heroImageUpload?: {
+    name?: string;
+    contentBase64?: string;
+  };
   body?: string;
 };
 
@@ -97,7 +102,57 @@ const safeSlug = (slug: string) =>
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
 
+const reservedSlugs = new Set([
+  "admin",
+  "api",
+  "about",
+  "blog",
+  "tags",
+  "rss",
+  "robots",
+  "profile",
+  "login",
+  "logout",
+  "index",
+  "search",
+  "assets",
+  "_astro",
+  "pagefind",
+  "comments",
+  "stats",
+  "theme",
+  "new",
+  "edit",
+]);
+
+const assertValidSlug = (slug: string) => {
+  if (!slug) throw new Error("Slug is required");
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+    throw new Error("Slug may only contain lowercase letters, numbers, and hyphens");
+  }
+  if (reservedSlugs.has(slug)) throw new Error(`Slug "${slug}" is reserved`);
+};
+
 const articlePath = (slug: string) => `src/content/blog/${safeSlug(slug)}.md`;
+
+const safeAssetName = (name: string, slug: string) => {
+  const extension = name.split(".").pop()?.toLowerCase() ?? "png";
+  const allowedExtensions = new Set(["png", "jpg", "jpeg", "webp", "gif"]);
+  const safeExtension = allowedExtensions.has(extension) ? extension : "png";
+  const base = safeSlug(name.replace(/\.[^.]+$/, "")) || "cover";
+  return `${safeSlug(slug)}-${Date.now()}-${base}.${safeExtension}`;
+};
+
+const imagePath = (fileName: string) => `src/content/blog/images/${fileName}`;
+
+const githubContentExists = async (path: string) => {
+  try {
+    await githubRequest(`/contents/${path}`);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 const encodeBase64 = (value: string) => btoa(unescape(encodeURIComponent(value)));
 
@@ -140,6 +195,27 @@ Deno.serve(async (req) => {
 
     if (req.method === "POST" || req.method === "PUT") {
       const payload = (await req.json()) as ArticlePayload & { sha?: string };
+      const slug = safeSlug(payload.slug ?? payload.title ?? "untitled");
+      const originalSlug = safeSlug(payload.originalSlug ?? "");
+
+      assertValidSlug(slug);
+
+      if ((req.method === "POST" || (originalSlug && slug !== originalSlug)) && await githubContentExists(articlePath(slug))) {
+        return json({ error: `Slug "${slug}" already exists` }, 409);
+      }
+
+      if (payload.heroImageUpload?.contentBase64) {
+        const fileName = safeAssetName(payload.heroImageUpload.name ?? "cover.png", slug);
+        await githubRequest(`/contents/${imagePath(fileName)}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            message: `Upload article image ${fileName}`,
+            content: payload.heroImageUpload.contentBase64,
+          }),
+        });
+        payload.heroImage = `./images/${fileName}`;
+      }
+
       const article = toMarkdown(payload);
       const path = articlePath(article.slug);
 
@@ -158,7 +234,7 @@ Deno.serve(async (req) => {
         }),
       });
 
-      return json({ slug: article.slug, commit: result.commit?.sha });
+      return json({ slug: article.slug, heroImage: payload.heroImage, commit: result.commit?.sha });
     }
 
     if (req.method === "DELETE") {

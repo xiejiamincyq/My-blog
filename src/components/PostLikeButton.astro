@@ -1,0 +1,176 @@
+---
+interface Props {
+  postSlug: string;
+}
+
+const { postSlug } = Astro.props;
+---
+
+<span class="post-like" data-post-like data-post-slug={postSlug}>
+  <button class="post-like-button" type="button" aria-pressed="false" data-like-button disabled>
+    <span class="post-like-icon" aria-hidden="true">♥</span>
+    <span data-like-label>点赞</span>
+  </button>
+  <span class="post-like-count"><span data-like-count>--</span> 个赞</span>
+  <span class="post-like-status" data-like-status aria-live="polite"></span>
+</span>
+
+<style>
+  .post-like {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    color: var(--muted);
+  }
+
+  .post-like-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 34px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(8, 13, 24, 0.5);
+    color: var(--text);
+    cursor: pointer;
+    font: inherit;
+    font-weight: 800;
+    padding: 5px 10px;
+    transition:
+      border-color 160ms ease,
+      color 160ms ease,
+      background 160ms ease;
+  }
+
+  .post-like-button:hover:not(:disabled),
+  .post-like-button[aria-pressed="true"] {
+    border-color: rgba(255, 95, 200, 0.5);
+    background: rgba(255, 95, 200, 0.12);
+    color: var(--warm);
+  }
+
+  .post-like-button:disabled {
+    cursor: default;
+    opacity: 0.82;
+  }
+
+  .post-like-icon {
+    line-height: 1;
+  }
+
+  .post-like-count,
+  .post-like-status {
+    font-size: 15px;
+  }
+
+  .post-like-status:empty {
+    display: none;
+  }
+
+  [data-theme="light"] .post-like-button {
+    background: rgba(255, 255, 255, 0.62);
+  }
+</style>
+
+<script>
+  // @ts-nocheck
+  import { getSupabaseClient, hashAnonymousIdentity } from "../lib/supabase-browser";
+
+  const roots = document.querySelectorAll("[data-post-like]");
+  const supabase = await getSupabaseClient();
+
+  const setUnavailable = (root) => {
+    const button = root.querySelector("[data-like-button]");
+    const countNode = root.querySelector("[data-like-count]");
+    const statusNode = root.querySelector("[data-like-status]");
+    button.disabled = true;
+    countNode.textContent = "0";
+    statusNode.textContent = "点赞暂不可用";
+  };
+
+  const setState = (root, state) => {
+    const button = root.querySelector("[data-like-button]");
+    const label = root.querySelector("[data-like-label]");
+    const countNode = root.querySelector("[data-like-count]");
+    const statusNode = root.querySelector("[data-like-status]");
+
+    countNode.textContent = String(state.total_likes ?? 0);
+    button.disabled = Boolean(state.loading || state.liked);
+    button.setAttribute("aria-pressed", state.liked ? "true" : "false");
+    label.textContent = state.liked ? "已点赞" : "点赞";
+    statusNode.textContent = state.message ?? "";
+  };
+
+  const readState = async (root, anonymousId) => {
+    const postSlug = root.dataset.postSlug;
+    const { data, error } = await supabase
+      .rpc("get_post_like_state", {
+        target_post_slug: postSlug,
+        target_anonymous_id: anonymousId,
+      })
+      .maybeSingle();
+
+    if (error) throw error;
+    return data ?? { total_likes: 0, liked: false };
+  };
+
+  const refresh = async (root, anonymousId) => {
+    try {
+      setState(root, { total_likes: root.dataset.likeCount ?? "--", loading: true });
+      const state = await readState(root, anonymousId);
+      root.dataset.likeCount = String(state.total_likes ?? 0);
+      setState(root, state);
+    } catch {
+      setUnavailable(root);
+    }
+  };
+
+  if (!supabase) {
+    roots.forEach(setUnavailable);
+  } else {
+    const anonymousId = await hashAnonymousIdentity();
+
+    roots.forEach(async (root) => {
+      const button = root.querySelector("[data-like-button]");
+      await refresh(root, anonymousId);
+
+      button?.addEventListener("click", async () => {
+        const postSlug = root.dataset.postSlug;
+        setState(root, {
+          total_likes: root.dataset.likeCount ?? 0,
+          loading: true,
+          message: "正在点赞...",
+        });
+
+        const { data, error } = await supabase
+          .rpc("like_post", {
+            target_post_slug: postSlug,
+            target_anonymous_id: anonymousId,
+          })
+          .maybeSingle();
+
+        if (error) {
+          setState(root, {
+            total_likes: root.dataset.likeCount ?? 0,
+            liked: false,
+            message: "点赞失败，请稍后重试。",
+          });
+          return;
+        }
+
+        const nextState = data ?? (await readState(root, anonymousId));
+        root.dataset.likeCount = String(nextState.total_likes ?? 0);
+        setState(root, { ...nextState, message: "谢谢喜欢。" });
+      });
+    });
+
+    supabase.auth.onAuthStateChange(() => {
+      roots.forEach((root) => refresh(root, anonymousId));
+    });
+    window.addEventListener("blog-auth-change", () => {
+      roots.forEach((root) => refresh(root, anonymousId));
+    });
+  }
+</script>

@@ -34,17 +34,29 @@ export function getUserLabel(user: any) {
   );
 }
 
-export async function hashVisitor() {
-  const key = "blog_visitor_id";
+function getBrowserId(key: string) {
   let id = localStorage.getItem(key);
   if (!id) {
-    id = crypto.randomUUID();
+    id =
+      crypto.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
     localStorage.setItem(key, id);
   }
+  return id;
+}
 
-  const input = `${id}:${navigator.userAgent}`;
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+async function hashText(value: string) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest))
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
+}
+
+export async function hashAnonymousIdentity() {
+  return hashText(getBrowserId("blog_anonymous_id"));
+}
+
+export async function hashVisitor() {
+  const id = getBrowserId("blog_visitor_id");
+  const input = `${id}:${navigator.userAgent}`;
+  return hashText(input);
 }
