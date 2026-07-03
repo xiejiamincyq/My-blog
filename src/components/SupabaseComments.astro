@@ -31,7 +31,7 @@ const { postSlug } = Astro.props;
   </form>
 
   <p class="comments-empty" data-comments-loading>正在加载评论...</p>
-  <div class="comment-list" data-comment-list></div>
+  <div class="comment-list" data-comment-list aria-live="polite"></div>
   <p class="comments-empty" data-comments-empty hidden>还没有评论，来写第一条吧。</p>
   <p class="comments-empty" data-comments-unavailable hidden>
     评论系统尚未配置。阅读不受影响，配置 Supabase 后即可发表评论。
@@ -54,6 +54,7 @@ const { postSlug } = Astro.props;
   }
 
   .comments-heading h2 {
+    margin: 0;
     font-size: 28px;
   }
 
@@ -67,8 +68,9 @@ const { postSlug } = Astro.props;
     gap: 12px;
     border: 1px solid var(--line);
     border-radius: 8px;
-    background: var(--surface);
+    background: linear-gradient(180deg, var(--surface-strong), var(--surface));
     padding: 18px;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
   }
 
   .comment-form[hidden] {
@@ -81,12 +83,14 @@ const { postSlug } = Astro.props;
 
   .comment-form textarea {
     width: 100%;
+    min-height: 112px;
     resize: vertical;
     border: 1px solid var(--line);
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.76);
+    background: rgba(5, 9, 18, 0.52);
     color: var(--text);
     font: inherit;
+    line-height: 1.7;
     padding: 12px;
   }
 
@@ -101,58 +105,95 @@ const { postSlug } = Astro.props;
     justify-content: space-between;
     gap: 12px;
     color: var(--muted);
+    min-height: 44px;
   }
 
   .comment-list {
     display: grid;
-    gap: 14px;
+    gap: 12px;
     margin-top: 20px;
   }
 
   .comment-card {
     border: 1px solid var(--line);
     border-radius: 8px;
-    background: var(--surface);
-    padding: 16px;
+    background: linear-gradient(180deg, rgba(8, 13, 24, 0.74), rgba(8, 13, 24, 0.56));
+    padding: 16px 18px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
   }
 
   .comment-meta {
-    display: flex;
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
     align-items: center;
-    gap: 10px;
-    margin-bottom: 8px;
-    color: var(--muted);
-    font-size: 14px;
+    gap: 10px 12px;
+    margin-bottom: 10px;
   }
 
+  .comment-author {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    min-width: 0;
+  }
+
+  .comment-author strong {
+    color: var(--text);
+    line-height: 1.25;
+  }
+
+  .comment-author time {
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .comment-avatar,
   .comment-avatar-fallback {
     display: inline-grid;
     place-items: center;
     flex: 0 0 auto;
-    width: 28px;
-    height: 28px;
+    width: 34px;
+    height: 34px;
     border-radius: 999px;
-    background: rgba(71, 233, 255, 0.16);
+  }
+
+  .comment-avatar-fallback {
+    background: linear-gradient(135deg, rgba(71, 233, 255, 0.18), rgba(255, 95, 200, 0.16));
     color: var(--accent-strong);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 900;
   }
 
-  .comment-meta img {
-    flex: 0 0 auto;
-    width: 28px;
-    height: 28px;
-    border-radius: 999px;
+  .comment-avatar {
     object-fit: cover;
   }
 
   .comment-body {
+    margin: 0;
+    color: var(--text);
+    line-height: 1.75;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
 
   .comments-empty {
+    margin: 18px 0 0;
     color: var(--muted);
+  }
+
+  [data-comment-status]:empty {
+    display: none;
+  }
+
+  [data-theme="light"] .comment-form,
+  [data-theme="light"] .comment-card {
+    background: rgba(255, 255, 255, 0.72);
+    box-shadow: 0 12px 30px rgba(31, 78, 93, 0.08);
+  }
+
+  [data-theme="light"] .comment-form textarea {
+    background: rgba(255, 255, 255, 0.74);
   }
 
   @media (max-width: 620px) {
@@ -160,6 +201,11 @@ const { postSlug } = Astro.props;
     .comment-form-actions {
       align-items: flex-start;
       flex-direction: column;
+    }
+
+    .comments-heading .auth-button,
+    .comment-form-actions .button {
+      width: 100%;
     }
   }
 </style>
@@ -182,18 +228,12 @@ const { postSlug } = Astro.props;
   const status = root?.querySelector("[data-comment-status]");
   const submitButton = root?.querySelector("[data-comment-submit]");
 
-  const escapeHTML = (value = "") =>
-    String(value).replace(/[&<>"']/g, (char) => {
-      const map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" };
-      return map[char];
-    });
-
   const getSafeAvatar = (value) => {
     if (!value) return "";
     try {
       const url = new URL(value);
       if (!["http:", "https:"].includes(url.protocol)) return "";
-      return escapeHTML(url.href);
+      return url.href;
     } catch {
       return "";
     }
@@ -201,17 +241,84 @@ const { postSlug } = Astro.props;
 
   const getInitial = (value) => {
     const trimmed = String(value || "匿名").trim();
-    return escapeHTML(trimmed.slice(0, 1).toUpperCase() || "匿");
+    return trimmed.slice(0, 1).toUpperCase() || "匿";
   };
 
-  const formatDate = (value) =>
-    new Intl.DateTimeFormat("zh-CN", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(value));
+  const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const formatDate = (value) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return dateFormatter.format(date);
+  };
+
+  const setStatus = (message = "") => {
+    if (status) status.textContent = message;
+  };
+
+  const setUnavailable = (message) => {
+    if (loading) loading.hidden = true;
+    if (empty) empty.hidden = true;
+    if (list) list.replaceChildren();
+    if (unavailable) {
+      unavailable.textContent = message;
+      unavailable.hidden = false;
+    }
+    if (countNode) countNode.textContent = "0";
+  };
+
+  const renderComment = (comment) => {
+    const article = document.createElement("article");
+    article.className = "comment-card";
+
+    const meta = document.createElement("div");
+    meta.className = "comment-meta";
+
+    const avatar = getSafeAvatar(comment.author_avatar);
+    if (avatar) {
+      const image = document.createElement("img");
+      image.className = "comment-avatar";
+      image.src = avatar;
+      image.alt = "";
+      meta.append(image);
+    } else {
+      const fallback = document.createElement("span");
+      fallback.className = "comment-avatar-fallback";
+      fallback.setAttribute("aria-hidden", "true");
+      fallback.textContent = getInitial(comment.author_name);
+      meta.append(fallback);
+    }
+
+    const author = document.createElement("div");
+    author.className = "comment-author";
+
+    const authorName = document.createElement("strong");
+    authorName.textContent = comment.author_name || "匿名用户";
+    author.append(authorName);
+
+    const createdAt = formatDate(comment.created_at);
+    if (createdAt) {
+      const time = document.createElement("time");
+      time.dateTime = comment.created_at;
+      time.textContent = createdAt;
+      author.append(time);
+    }
+
+    meta.append(author);
+
+    const body = document.createElement("p");
+    body.className = "comment-body";
+    body.textContent = comment.content || "";
+
+    article.append(meta, body);
+    return article;
+  };
 
   const renderAuth = async () => {
     if (!supabase) return;
@@ -219,6 +326,7 @@ const { postSlug } = Astro.props;
     const user = data.user;
     if (loginButton) loginButton.hidden = Boolean(user);
     if (form) form.hidden = !user;
+    setStatus("");
   };
 
   const loadComments = async () => {
@@ -226,12 +334,11 @@ const { postSlug } = Astro.props;
     if (loading) loading.hidden = false;
     if (empty) empty.hidden = true;
     if (unavailable) unavailable.hidden = true;
+    list.replaceChildren();
 
     if (!supabase) {
-      if (loading) loading.hidden = true;
-      if (unavailable) unavailable.hidden = false;
+      setUnavailable("评论系统尚未配置。阅读不受影响，配置 Supabase 后即可发表评论。");
       if (loginButton) loginButton.hidden = true;
-      if (countNode) countNode.textContent = "0";
       return;
     }
 
@@ -245,32 +352,13 @@ const { postSlug } = Astro.props;
     if (loading) loading.hidden = true;
 
     if (error) {
-      if (unavailable) unavailable.hidden = false;
+      setUnavailable("评论读取失败，请稍后刷新重试。");
       return;
     }
 
     const comments = data ?? [];
     if (countNode) countNode.textContent = String(comments.length);
-    list.innerHTML = comments
-      .map((comment) => {
-        const avatar = getSafeAvatar(comment.author_avatar);
-        const authorName = escapeHTML(comment.author_name || "匿名用户");
-        return `
-          <article class="comment-card">
-            <div class="comment-meta">
-              ${
-                avatar
-                  ? `<img src="${avatar}" alt="" />`
-                  : `<span class="comment-avatar-fallback" aria-hidden="true">${getInitial(comment.author_name)}</span>`
-              }
-              <strong>${authorName}</strong>
-              <span>${formatDate(comment.created_at)}</span>
-            </div>
-            <div class="comment-body">${escapeHTML(comment.content)}</div>
-          </article>
-        `;
-      })
-      .join("");
+    list.replaceChildren(...comments.map(renderComment));
 
     if (empty) empty.hidden = Boolean(comments.length);
   };
@@ -298,20 +386,22 @@ const { postSlug } = Astro.props;
   form?.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!supabase || !textarea || !submitButton) return;
-    status.textContent = "发布中...";
+    setStatus("发布中...");
     submitButton.disabled = true;
+    form.setAttribute("aria-busy", "true");
 
     try {
       const { data } = await supabase.auth.getUser();
       const user = data.user;
       if (!user) {
-        status.textContent = "请先登录。";
+        setStatus("请先登录。");
         return;
       }
 
       const content = textarea.value.trim();
       if (!content) {
-        status.textContent = "评论不能为空。";
+        setStatus("评论不能为空。");
+        textarea.focus();
         return;
       }
 
@@ -326,15 +416,16 @@ const { postSlug } = Astro.props;
       });
 
       if (error) {
-        status.textContent = "发布失败，请稍后重试。";
+        setStatus("发布失败，请稍后重试。");
         return;
       }
 
       textarea.value = "";
-      status.textContent = "已发布。";
+      setStatus("已发布。");
       await loadComments();
     } finally {
       submitButton.disabled = false;
+      form.removeAttribute("aria-busy");
     }
   });
 
