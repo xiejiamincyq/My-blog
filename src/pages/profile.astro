@@ -70,7 +70,7 @@ import { sitePath } from "../lib/paths";
         <div class="profile-panel-heading">
           <h2>点赞记录</h2>
         </div>
-        <div class="profile-empty">点赞功能尚未开启，暂时没有点赞记录。</div>
+        <div class="profile-list" data-like-list></div>
       </section>
     </div>
   </section>
@@ -198,6 +198,7 @@ import { sitePath } from "../lib/paths";
   const nameNode = root?.querySelector("[data-profile-name]");
   const signatureNode = root?.querySelector("[data-profile-signature]");
   const commentList = root?.querySelector("[data-comment-list]");
+  const likeList = root?.querySelector("[data-like-list]");
 
   const message = (node, value) => {
     if (node) node.textContent = value;
@@ -270,6 +271,38 @@ import { sitePath } from "../lib/paths";
       .join("");
   };
 
+  const loadLikes = async (user) => {
+    if (!likeList) return;
+
+    const { data, error } = await supabase
+      .from("post_likes")
+      .select("id, post_slug, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (error) {
+      likeList.innerHTML = `<div class="profile-empty">${escapeHTML(error.message)}</div>`;
+      return;
+    }
+
+    if (!data?.length) {
+      likeList.innerHTML = `<div class="profile-empty">还没有点赞记录。</div>`;
+      return;
+    }
+
+    likeList.innerHTML = data
+      .map(
+        (like) => `
+          <article class="profile-item">
+            <h3><a href="${import.meta.env.BASE_URL}blog/${encodeURIComponent(like.post_slug)}/">${escapeHTML(like.post_slug)}</a></h3>
+            <p>${formatDate(like.created_at)}</p>
+          </article>
+        `,
+      )
+      .join("");
+  };
+
   const initializeProfile = async () => {
     if (!supabase) {
       message(
@@ -292,7 +325,7 @@ import { sitePath } from "../lib/paths";
       return;
     }
 
-    await Promise.all([loadProfile(user), loadComments(user)]);
+    await Promise.all([loadProfile(user), loadComments(user), loadLikes(user)]);
     message(statusNode, `${getUserLabel(user)}，这是你的个人信息。`);
   };
 
