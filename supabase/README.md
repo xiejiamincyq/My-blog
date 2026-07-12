@@ -16,11 +16,15 @@ Supabase Edge Function secrets:
 
 ```text
 SUPABASE_URL=
-SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_SECRET_KEY=
 GITHUB_TOKEN=
 GITHUB_OWNER=xiejiamincyq
 GITHUB_REPO=My-blog
 ```
+
+`SUPABASE_SECRET_KEY` should be a new Supabase secret key (`sb_secret_...`). The function also
+supports Supabase's default `SUPABASE_SECRET_KEYS` JSON value and falls back to the legacy
+`SUPABASE_SERVICE_ROLE_KEY` only for older projects.
 
 ## Setup order
 

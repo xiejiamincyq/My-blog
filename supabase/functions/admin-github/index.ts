@@ -35,6 +35,29 @@ const env = (name: string) => {
   return value;
 };
 
+const optionalEnv = (name: string) => Deno.env.get(name) || "";
+
+const getSupabaseAdminKey = () => {
+  const explicitSecretKey = optionalEnv("SUPABASE_SECRET_KEY");
+  if (explicitSecretKey) return explicitSecretKey;
+
+  const secretKeys = optionalEnv("SUPABASE_SECRET_KEYS");
+  if (secretKeys) {
+    try {
+      const parsed = JSON.parse(secretKeys);
+      const defaultKey = parsed?.default;
+      if (typeof defaultKey === "string" && defaultKey) return defaultKey;
+    } catch {
+      throw new Error("SUPABASE_SECRET_KEYS must be valid JSON");
+    }
+  }
+
+  const legacyServiceRoleKey = optionalEnv("SUPABASE_SERVICE_ROLE_KEY");
+  if (legacyServiceRoleKey) return legacyServiceRoleKey;
+
+  throw new Error("Missing Supabase admin key. Set SUPABASE_SECRET_KEY or SUPABASE_SECRET_KEYS.");
+};
+
 const githubRequest = async (path: string, init: RequestInit = {}) => {
   const token = env("GITHUB_TOKEN");
   const owner = env("GITHUB_OWNER");
@@ -64,13 +87,13 @@ const getSupabaseUser = async (req: Request) => {
   if (!authHeader) throw new Error("Missing Authorization header");
 
   const supabaseUrl = env("SUPABASE_URL");
-  const serviceRoleKey = env("SUPABASE_SERVICE_ROLE_KEY");
+  const adminKey = getSupabaseAdminKey();
   const token = authHeader.replace(/^Bearer\s+/i, "");
 
   const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
     headers: {
       Authorization: `Bearer ${token}`,
-      apikey: serviceRoleKey,
+      apikey: adminKey,
     },
   });
 
@@ -81,8 +104,7 @@ const getSupabaseUser = async (req: Request) => {
     `${supabaseUrl}/rest/v1/profiles?id=eq.${userPayload.id}&select=role`,
     {
       headers: {
-        Authorization: `Bearer ${serviceRoleKey}`,
-        apikey: serviceRoleKey,
+        apikey: adminKey,
       },
     },
   );

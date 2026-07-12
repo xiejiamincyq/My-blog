@@ -11,6 +11,7 @@
     "format:check": "prettier --check \"src/**/*.{astro,ts,md,css}\"",
     "typecheck": "node scripts/astro.mjs check",
     "typecheck:strict": "node scripts/astro.mjs check --minimumFailingSeverity warning",
+    "check:comment-ui": "node scripts/check-comment-ui.mjs",
     "lint:md": "markdownlint \"src/content/**/*.md\"",
     "lint:md:fix": "markdownlint --fix \"src/content/**/*.md\""
   },
