@@ -108,29 +108,29 @@ const { postSlug } = Astro.props;
     min-height: 44px;
   }
 
-  .comment-list {
+  :global(.comment-list) {
     display: grid;
-    gap: 12px;
-    margin-top: 20px;
+    gap: 14px;
+    margin-top: 22px;
   }
 
-  .comment-card {
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    background: linear-gradient(180deg, rgba(8, 13, 24, 0.74), rgba(8, 13, 24, 0.56));
-    padding: 16px 18px;
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+  :global(.comment-card) {
+    border: 1px solid rgba(126, 240, 255, 0.2);
+    border-radius: 12px;
+    background: linear-gradient(145deg, rgba(12, 22, 38, 0.9), rgba(7, 13, 25, 0.72));
+    padding: 18px;
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.22);
   }
 
-  .comment-meta {
+  :global(.comment-meta) {
     display: grid;
-    grid-template-columns: 34px minmax(0, 1fr);
+    grid-template-columns: 32px minmax(0, 1fr);
     align-items: center;
-    gap: 10px 12px;
-    margin-bottom: 10px;
+    gap: 12px;
+    margin-bottom: 12px;
   }
 
-  .comment-author {
+  :global(.comment-author) {
     display: flex;
     align-items: baseline;
     flex-wrap: wrap;
@@ -138,41 +138,41 @@ const { postSlug } = Astro.props;
     min-width: 0;
   }
 
-  .comment-author strong {
+  :global(.comment-author strong) {
     color: var(--text);
     line-height: 1.25;
   }
 
-  .comment-author time {
+  :global(.comment-author time) {
     color: var(--muted);
     font-size: 13px;
   }
 
-  .comment-avatar,
-  .comment-avatar-fallback {
+  :global(.comment-avatar),
+  :global(.comment-avatar-fallback) {
     display: inline-grid;
     place-items: center;
-    flex: 0 0 auto;
-    width: 34px;
-    height: 34px;
+    width: 32px;
+    height: 32px;
+    border: 1px solid rgba(138, 245, 255, 0.3);
     border-radius: 999px;
   }
 
-  .comment-avatar-fallback {
-    background: linear-gradient(135deg, rgba(71, 233, 255, 0.18), rgba(255, 95, 200, 0.16));
-    color: var(--accent-strong);
-    font-size: 14px;
-    font-weight: 900;
-  }
-
-  .comment-avatar {
+  :global(.comment-avatar) {
     object-fit: cover;
   }
 
-  .comment-body {
+  :global(.comment-avatar-fallback) {
+    background: linear-gradient(135deg, rgba(71, 233, 255, 0.2), rgba(255, 95, 200, 0.18));
+    color: var(--accent-strong);
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  :global(.comment-body) {
     margin: 0;
     color: var(--text);
-    line-height: 1.75;
+    line-height: 1.8;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
@@ -186,10 +186,20 @@ const { postSlug } = Astro.props;
     display: none;
   }
 
-  [data-theme="light"] .comment-form,
-  [data-theme="light"] .comment-card {
+  [data-theme="light"] .comment-form {
     background: rgba(255, 255, 255, 0.72);
     box-shadow: 0 12px 30px rgba(31, 78, 93, 0.08);
+  }
+
+  [data-theme="light"] :global(.comment-card) {
+    border-color: rgba(13, 125, 110, 0.18);
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(242, 248, 250, 0.78));
+    box-shadow: 0 12px 28px rgba(49, 90, 112, 0.1);
+  }
+
+  [data-theme="light"] :global(.comment-avatar),
+  [data-theme="light"] :global(.comment-avatar-fallback) {
+    border-color: rgba(13, 125, 110, 0.2);
   }
 
   [data-theme="light"] .comment-form textarea {
