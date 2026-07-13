@@ -18,30 +18,35 @@
 <style>
   .search-wrapper {
     position: relative;
-    width: min(100%, 460px);
+    width: min(100%, 680px);
   }
 
   .search-bar {
     display: flex;
     align-items: center;
-    min-height: 52px;
+    min-height: 60px;
     gap: 10px;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    background: rgba(8, 13, 24, 0.72);
-    padding: 0 14px;
-    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.24);
-    backdrop-filter: blur(18px);
+    border: 1px solid var(--glass-border);
+    border-radius: 18px;
+    background:
+      linear-gradient(135deg, var(--glass-highlight), transparent 48%), var(--glass-fill);
+    padding: 0 18px;
+    box-shadow:
+      inset 0 1px 0 var(--glass-highlight),
+      0 20px 54px color-mix(in srgb, var(--bg) 62%, transparent);
+    backdrop-filter: blur(22px) saturate(155%);
+    -webkit-backdrop-filter: blur(22px) saturate(155%);
     transition:
       border-color 160ms ease,
       box-shadow 160ms ease;
   }
 
   .search-bar:focus-within {
-    border-color: rgba(71, 233, 255, 0.58);
+    border-color: var(--accent);
     box-shadow:
-      0 14px 38px rgba(0, 0, 0, 0.28),
-      0 0 24px rgba(71, 233, 255, 0.16);
+      inset 0 1px 0 var(--glass-highlight),
+      0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent),
+      0 24px 64px color-mix(in srgb, var(--ambient-1) 48%, transparent);
   }
 
   .search-icon {
@@ -58,6 +63,7 @@
     color: var(--text);
     font: inherit;
     outline: 0;
+    font-size: 17px;
   }
 
   #search-input::placeholder {
@@ -66,9 +72,9 @@
 
   .search-shortcut {
     flex: 0 0 auto;
-    border: 1px solid rgba(71, 233, 255, 0.18);
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--surface) 72%, transparent);
     color: var(--muted);
     padding: 2px 7px;
     font-family: inherit;
@@ -85,8 +91,8 @@
     z-index: 20;
     max-height: min(420px, 60vh);
     overflow-y: auto;
-    border: 1px solid var(--line);
-    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+    border-radius: 18px;
     background: var(--surface-strong);
     box-shadow: var(--shadow);
     backdrop-filter: blur(20px);
@@ -107,7 +113,7 @@
   }
 
   .search-result:hover {
-    background: rgba(71, 233, 255, 0.07);
+    background: color-mix(in srgb, var(--accent) 9%, transparent);
   }
 
   .search-result-title {
@@ -124,7 +130,7 @@
 
   .search-result-excerpt mark {
     border-radius: 3px;
-    background: rgba(255, 200, 87, 0.22);
+    background: color-mix(in srgb, var(--sun) 22%, transparent);
     color: var(--sun);
     padding: 0 2px;
   }
@@ -142,6 +148,20 @@
 
     .search-shortcut {
       display: none;
+    }
+  }
+
+  @supports not (backdrop-filter: blur(1px)) {
+    .search-bar {
+      background: var(--surface-strong);
+    }
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .search-bar {
+      background: var(--surface-strong);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
     }
   }
 </style>

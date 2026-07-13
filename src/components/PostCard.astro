@@ -7,9 +7,10 @@ import type { CollectionEntry } from "astro:content";
 
 interface Props {
   post: CollectionEntry<"blog">;
+  variant?: "default" | "featured-primary" | "featured-secondary" | "latest-lead";
 }
 
-const { post } = Astro.props;
+const { post, variant = "default" } = Astro.props;
 const slug = getPostSlug(post);
 const date = new Intl.DateTimeFormat("zh-CN", {
   year: "numeric",
@@ -18,7 +19,7 @@ const date = new Intl.DateTimeFormat("zh-CN", {
 }).format(post.data.pubDate);
 ---
 
-<article class="post-card">
+<article class:list={["post-card", `post-card--${variant}`]}>
   <a href={sitePath(`/blog/${slug}/`)}>
     {
       post.data.heroImage && (

@@ -31,3 +31,7 @@ Existing commits use short, imperative, sentence-case messages, for example `Fix
 ## Security & Configuration Tips
 
 Do not commit `.env` files or secrets; they are already ignored. Keep deployment-specific paths compatible with `astro.config.mjs`, which handles GitHub Pages base paths. Store public, non-secret assets in `public/`; keep private credentials outside the repository.
+
+## Project Skills
+
+When asked to beautify, redesign, or otherwise make this site's marketing, editorial, portfolio, landing-page, or about-page UI more polished, read and apply `.agents/skills/taste-skill/SKILL.md` before changing code. This skill is project-local; do not use it for unrelated projects. For dashboard, dense admin, multi-step form, or data-table UI, follow the skill's out-of-scope guidance instead.
