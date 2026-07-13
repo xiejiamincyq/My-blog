@@ -10,4 +10,5 @@ npm-debug.log*
 .agents/
 .superpowers/
 .worktrees/
+.runtime/
 plan*.md

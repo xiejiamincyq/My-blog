@@ -153,8 +153,7 @@ main {
   margin: 12px auto 0;
   border: 1px solid var(--glass-border);
   border-radius: 18px;
-  background:
-    linear-gradient(135deg, var(--glass-highlight), transparent 45%), var(--glass-fill);
+  background: linear-gradient(135deg, var(--glass-highlight), transparent 45%), var(--glass-fill);
   padding: 10px 14px;
   gap: 24px;
   box-shadow:

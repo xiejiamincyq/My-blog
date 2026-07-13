@@ -28,12 +28,8 @@ const latestPosts = posts.slice(0, 4);
             <h2 id="featured-title">从这些文章开始</h2>
           </div>
           <div class="featured-layout" data-home-reveal>
-            {featuredPosts[0] && (
-              <PostCard post={featuredPosts[0]} variant="featured-primary" />
-            )}
-            {featuredPosts[1] && (
-              <PostCard post={featuredPosts[1]} variant="featured-secondary" />
-            )}
+            {featuredPosts[0] && <PostCard post={featuredPosts[0]} variant="featured-primary" />}
+            {featuredPosts[1] && <PostCard post={featuredPosts[1]} variant="featured-secondary" />}
           </div>
         </section>
       )
@@ -48,7 +44,9 @@ const latestPosts = posts.slice(0, 4);
         latestPosts.length ? (
           <div class="latest-layout" data-home-reveal>
             {latestPosts[0] && <PostCard post={latestPosts[0]} variant="latest-lead" />}
-            {latestPosts.slice(1).map((post) => <PostCard post={post} />)}
+            {latestPosts.slice(1).map((post) => (
+              <PostCard post={post} />
+            ))}
           </div>
         ) : (
           <p class="home-empty">第一篇文章正在路上。</p>
