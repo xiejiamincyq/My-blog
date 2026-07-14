@@ -40,15 +40,33 @@ const lightBackgroundImage = `url("${sitePath("images/sunny-anime-light-bg-4k.pn
     <meta charset="UTF-8" />
     <script is:inline>
       (function () {
+        const now = new Date();
+        let beijingHour = (now.getUTCHours() + 8) % 24;
+
         try {
-          const stored = localStorage.getItem("theme");
-          const theme = stored === "light" ? "light" : "dark";
-          document.documentElement.dataset.theme = theme;
-          document.documentElement.style.colorScheme = theme;
+          beijingHour = Number(
+            new Intl.DateTimeFormat("en-GB", {
+              timeZone: "Asia/Shanghai",
+              hour: "2-digit",
+              hourCycle: "h23",
+            }).format(now),
+          );
         } catch {
-          document.documentElement.dataset.theme = "dark";
-          document.documentElement.style.colorScheme = "dark";
+          // UTC+8 fallback keeps the first-paint theme deterministic.
         }
+
+        const timeTheme = beijingHour >= 6 && beijingHour < 18 ? "light" : "dark";
+        let stored = null;
+
+        try {
+          stored = sessionStorage.getItem("theme");
+        } catch {
+          // Fall back to Beijing time when session storage is unavailable.
+        }
+
+        const theme = stored === "light" || stored === "dark" ? stored : timeTheme;
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
       })();
     </script>
     <meta name="description" content={description} />

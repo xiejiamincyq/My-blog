@@ -4,7 +4,8 @@ import HomepageHero from "../components/HomepageHero.astro";
 import PostCard from "../components/PostCard.astro";
 import Search from "../components/Search.astro";
 import "../styles/home.css";
-import digitalGardenHero from "../assets/digital-garden-hero.png";
+import digitalGardenHero from "../assets/digital-garden-hero-night.png";
+import digitalGardenHeroDay from "../assets/digital-garden-hero-day.png";
 import { getPublishedPosts } from "../lib/posts";
 import { sitePath } from "../lib/paths";
 
@@ -15,10 +16,16 @@ const latestPosts = posts.slice(0, 4);
 
 <BaseLayout>
   <div class="homepage">
-    <HomepageHero postCount={posts.length} heroImage={digitalGardenHero} />
+    <HomepageHero heroImage={digitalGardenHero} lightHeroImage={digitalGardenHeroDay} />
 
     <section class="home-search" aria-label="站内搜索">
-      <Search />
+      <div class="home-search-layout">
+        <Search />
+        <p class="home-hero-count" data-home-reveal>
+          <strong>{posts.length}</strong>
+          <span>篇文章</span>
+        </p>
+      </div>
     </section>
 
     {

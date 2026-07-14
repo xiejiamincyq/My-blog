@@ -4,11 +4,11 @@ import type { ImageMetadata } from "astro";
 import { sitePath } from "../lib/paths";
 
 interface Props {
-  postCount: number;
   heroImage?: ImageMetadata;
+  lightHeroImage?: ImageMetadata;
 }
 
-const { postCount, heroImage } = Astro.props;
+const { heroImage, lightHeroImage } = Astro.props;
 ---
 
 <section class="home-hero" aria-labelledby="home-title">
@@ -22,24 +22,40 @@ const { postCount, heroImage } = Astro.props;
     </div>
   </div>
 
-  <div class="home-hero-media" data-home-reveal>
-    {
-      heroImage ? (
-        <Image
-          src={heroImage}
-          alt="由透明花朵、幼苗与流动玻璃构成的数字花园"
-          widths={[640, 960]}
-          sizes="(max-width: 760px) 100vw, 48vw"
-          loading="eager"
-          decoding="async"
-        />
-      ) : (
-        <div class="home-hero-media-fallback" aria-hidden="true" />
-      )
-    }
-    <p class="home-hero-count">
-      <strong>{postCount}</strong>
-      <span>篇文章</span>
-    </p>
+  <div class="home-hero-visual" data-home-reveal>
+    <div class="home-hero-media">
+      {
+        heroImage ? (
+          <div
+            class="home-hero-artwork"
+            role="img"
+            aria-label="由透明花朵、幼苗与流动玻璃构成的数字花园"
+          >
+            <Image
+              class="home-hero-image home-hero-image--dark"
+              src={heroImage}
+              alt=""
+              widths={[640, 960]}
+              sizes="(max-width: 760px) 100vw, 48vw"
+              loading="eager"
+              decoding="async"
+            />
+            {lightHeroImage && (
+              <Image
+                class="home-hero-image home-hero-image--light"
+                src={lightHeroImage}
+                alt=""
+                widths={[640, 960]}
+                sizes="(max-width: 760px) 100vw, 48vw"
+                loading="eager"
+                decoding="async"
+              />
+            )}
+          </div>
+        ) : (
+          <div class="home-hero-media-fallback" aria-hidden="true" />
+        )
+      }
+    </div>
   </div>
 </section>
