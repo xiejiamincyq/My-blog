@@ -9,8 +9,11 @@ featured: true
 heroImage: "./images/github-high-stars-2026-07-15-cover.png"
 ---
 
+<!-- markdownlint-disable-next-line MD013 -->
+
 今天的名单以 GitHub
-Trending「Today」全语言榜的顺序为准，代表近 24 小时的社区热度；GitHub 页面未提供可稳定复核的每仓库当日新增 star 数，因此下文统一写作“当日热门（总 star）”，**不将总 star 当作当日新增**。总 star 与语言为 2026-07-15 抓取时的仓库公开数据。
+Trending「Today」全语言榜的顺序为准，代表近 24 小时的社区热度；GitHub 页面未提供可稳定复核的每仓库当日新增 star 数，因此下文统一写作“当日热门（总 star）”，
+**不将总 star 当作当日新增**。总 star 与语言为 2026-07-15 抓取时的仓库公开数据。
 
 ## 1. [Shubhamsaboo/awesome-llm-apps](https://github.com/Shubhamsaboo/awesome-llm-apps)
 
