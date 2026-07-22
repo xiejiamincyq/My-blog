@@ -6,6 +6,7 @@ description:
 pubDate: 2026-07-22
 tags: ["GitHub", "开源", "趋势", "AI", "开发工具"]
 featured: true
+heroImage: "./images/github-high-stars-2026-07-22-cover.png"
 ---
 
 <!-- markdownlint-disable MD013 -->
