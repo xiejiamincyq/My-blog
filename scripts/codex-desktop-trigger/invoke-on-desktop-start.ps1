@@ -23,6 +23,12 @@ $automationDirectory = Join-Path $CodexHome "automations\github"
 $automationPath = Join-Path $automationDirectory "automation.toml"
 $memoryPath = Join-Path $automationDirectory "memory.md"
 $logPath = Join-Path $automationDirectory "desktop-trigger.log"
+$promptTemplatePath = Join-Path $PSScriptRoot "publish-prompt.md"
+$codexExecPromptPath = Join-Path $automationDirectory "codex-exec-current.prompt.md"
+$codexExecPath = Join-Path $automationDirectory "codex-exec-current.log"
+$codexExecErrorPath = Join-Path $automationDirectory "codex-exec-current.err.log"
+$publishPath = Join-Path $automationDirectory "publish-current.log"
+$publishErrorPath = Join-Path $automationDirectory "publish-current.err.log"
 
 function Write-TriggerLog {
   param([Parameter(Mandatory)][string]$Message)
@@ -59,4 +65,34 @@ if ($DryRun) {
 $epochMilliseconds = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
 Set-AutomationOneShot -AutomationPath $automationPath -EpochMilliseconds $epochMilliseconds
 [System.IO.File]::WriteAllText($markerPath, $nowUtc.ToString("o"), [System.Text.Encoding]::ASCII)
-Write-TriggerLog "ACTIVATE date=$dateText rrule=FREQ=MINUTELY;INTERVAL=1;COUNT=1"
+$execConfig = Get-AutomationExecConfig -AutomationPath $automationPath
+$promptText = if (Test-Path -LiteralPath $promptTemplatePath) {
+  [System.IO.File]::ReadAllText($promptTemplatePath, (New-Object System.Text.UTF8Encoding($false)))
+}
+else {
+  $execConfig.Prompt
+}
+$model = if ([string]::IsNullOrWhiteSpace($execConfig.Model) -or $execConfig.Model -eq "gpt-5.6-sol") {
+  "gpt-5.5"
+}
+else {
+  $execConfig.Model
+}
+[System.IO.File]::WriteAllText($codexExecPromptPath, $promptText, (New-Object System.Text.UTF8Encoding($false)))
+$runnerPath = Join-Path $PSScriptRoot "run-codex-exec.ps1"
+$publisherPath = Join-Path $PSScriptRoot "publish-after-article.ps1"
+$powershellPath = Join-Path $PSHOME "powershell.exe"
+foreach ($path in @($runnerPath, $publisherPath, $RepositoryRoot, $CodexHome, $codexExecPromptPath)) {
+  if ($path.Contains('"')) {
+    throw "Paths containing quote characters are not supported."
+  }
+}
+if ($model.Contains('"')) {
+  throw "Model names containing quote characters are not supported."
+}
+$arguments = '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{0}" -RepositoryRoot "{1}" -PromptPath "{2}" -Model "{3}"' -f $runnerPath, $RepositoryRoot, $codexExecPromptPath, $model
+$publishArguments = '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{0}" -RepositoryRoot "{1}" -CodexHome "{2}" -DateText "{3}"' -f $publisherPath, $RepositoryRoot, $CodexHome, $dateText
+
+$process = Start-Process -FilePath $powershellPath -ArgumentList $arguments -WorkingDirectory $RepositoryRoot -WindowStyle Hidden -RedirectStandardOutput $codexExecPath -RedirectStandardError $codexExecErrorPath -PassThru
+$publisherProcess = Start-Process -FilePath $powershellPath -ArgumentList $publishArguments -WorkingDirectory $RepositoryRoot -WindowStyle Hidden -RedirectStandardOutput $publishPath -RedirectStandardError $publishErrorPath -PassThru
+Write-TriggerLog "ACTIVATE date=$dateText rrule=FREQ=MINUTELY;INTERVAL=1;COUNT=1 codex_pid=$($process.Id) publisher_pid=$($publisherProcess.Id)"

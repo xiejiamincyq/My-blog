@@ -33,23 +33,26 @@ if ($Uninstall) {
   return
 }
 
-$watcherPath = Join-Path $PSScriptRoot "watch-codex-desktop.ps1"
+$invokePath = Join-Path $PSScriptRoot "invoke-on-desktop-start.ps1"
 $powershellPath = Join-Path $PSHOME "powershell.exe"
-$arguments = New-WatcherArgumentString -WatcherPath $watcherPath -RepositoryRoot $RepositoryRoot -CodexHome $CodexHome
+$arguments = New-TriggerArgumentString -InvokePath $invokePath -RepositoryRoot $RepositoryRoot -CodexHome $CodexHome
+$description = "Triggers the GitHub trends publisher when the Codex desktop app is activated."
+$subscription = New-CodexDesktopActivationSubscription
+$currentIdentity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+$taskXml = New-CodexDesktopActivationTaskXml -Description $description -UserId $currentIdentity.User.Value -Execute $powershellPath -Arguments $arguments -Subscription $subscription
 
 if ($ValidateOnly) {
   Write-Output "TaskName=$taskName"
   Write-Output "Execute=$powershellPath"
   Write-Output "Arguments=$arguments"
+  Write-Output "Subscription=$subscription"
   return
 }
 
-$action = New-ScheduledTaskAction -Execute $powershellPath -Argument $arguments
-$trigger = New-ScheduledTaskTrigger -AtLogOn -User ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name)
-$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([timespan]::Zero) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
-$description = "Event-driven trigger for the GitHub trends publisher when the Codex desktop host starts."
-
-if ($PSCmdlet.ShouldProcess($taskName, "Register event-driven Codex desktop watcher")) {
-  Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Description $description -Force | Out-Null
-  Start-ScheduledTask -TaskName $taskName
+if ($PSCmdlet.ShouldProcess($taskName, "Register Codex desktop activation event trigger")) {
+  $existingTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+  if ($existingTask -and $existingTask.State -eq "Running") {
+    Stop-ScheduledTask -TaskName $taskName
+  }
+  Register-ScheduledTask -TaskName $taskName -Xml $taskXml -Force | Out-Null
 }
